@@ -10,6 +10,10 @@ from .agent import Agent
 from .controller import CustomController, PIDController
 from .controller import ls_circle
 
+import sys
+sys.path.append('../../PythonAPI')
+from agents.navigation.local_planner import LocalPlanner
+from agents.navigation.global_route_planner import GlobalRoutePlanner
 
 CROP_SIZE = 192
 STEPS = 5
@@ -61,22 +65,27 @@ class ImagePolicyModelSS(common.ResnetBase):
         
         self.all_branch = all_branch
 
-    def forward(self, image, velocity, command):
+    def forward(self, image_left, image_right, velocity, command):
         if self.warp:
-            warped_image = tgm.warp_perspective(image, self.M, dsize=(192, 192))
-            resized_image = resize_images(image)
-            image = torch.cat([warped_image, resized_image], 1)
-        
-        
-        image = self.rgb_transform(image)
+            warped_image = tgm.warp_perspective(image_left, self.M, dsize=(192, 192))
+            resized_image = resize_images(image_left)
+            image_left = torch.cat([warped_image, resized_image], 1)
 
-        h = self.conv(image)
+            warped_image = tgm.warp_perspective(image_right, self.M, dsize=(192, 192))
+            resized_image = resize_images(image_right)
+            image_right = torch.cat([warped_image, resized_image], 1)
+        
+        image_left = self.rgb_transform(image_left)
+        image_right = self.rgb_transform(image_right)
+
+        h_l= self.conv_left(image_left)
+        h_r= self.conv_right(image_right)
         b, c, kh, kw = h.size()
         
         # Late fusion for velocity
         velocity = velocity[...,None,None,None].repeat((1,128,kh,kw))
         
-        h = torch.cat((h, velocity), dim=1)
+        h = torch.cat((h_l, velocity, h_r, velocity), dim=1)
         h = self.deconv(h)
         
         location_preds = [location_pred(h) for location_pred in self.location_pred]
@@ -91,9 +100,12 @@ class ImagePolicyModelSS(common.ResnetBase):
 
 
 class ImageAgent(Agent):
-    def __init__(self, steer_points=None, pid=None, gap=5, camera_args={'x':384,'h':160,'fov':90,'world_y':1.4,'fixed_offset':4.0}, **kwargs):
+    def __init__(self, vehicle, steer_points=None, pid=None, gap=5, camera_args={'x':384,'h':160,'fov':90,'world_y':1.4,'fixed_offset':4.0}, **kwargs):
         super().__init__(**kwargs)
-
+        self._vehicle = vehicle
+        self._world = self._vehicle.get_world()
+        self._map = self._world.get_map()
+        
         self.fixed_offset = float(camera_args['fixed_offset'])
         print ("Offset: ", self.fixed_offset)
         w = float(camera_args['w'])
@@ -121,20 +133,26 @@ class ImageAgent(Agent):
         
         self.last_brake = -1
 
+        self._local_planner = LocalPlanner(self._vehicle)
+        self._global_planner = GlobalRoutePlanner(self._map, 2.0)
+
     def run_step(self, observations, teaching=False):
-        rgb = observations['rgb'].copy()
+        self._local_planner.run_step()
+        rgb_left = observations['rgb_left'].copy()
+        rgb_right = observations['rgb_right'].copy()
         speed = np.linalg.norm(observations['velocity'])
-        _cmd = int(observations['command'])
-        command = self.one_hot[int(observations['command']) - 1]
+        _cmd = int(self._local_planner.target_road_option)
+        command = self.one_hot[_cmd - 1]
 
         with torch.no_grad():
-            _rgb = self.transform(rgb).to(self.device).unsqueeze(0)
+            _rgb_left = self.transform(rgb_left).to(self.device).unsqueeze(0)
+            _rgb_right = self.transform(rgb_right).to(self.device).unsqueeze(0)
             _speed = torch.FloatTensor([speed]).to(self.device)
             _command = command.to(self.device).unsqueeze(0)
             if self.model.all_branch:
-                model_pred, _ = self.model(_rgb, _speed, _command)
+                model_pred, _ = self.model(_rgb_left, _rgb_right, _speed, _command)
             else:
-                model_pred = self.model(_rgb, _speed, _command)
+                model_pred = self.model(_rgb_left, _rgb_right, _speed, _command)
 
         model_pred = model_pred.squeeze().detach().cpu().numpy()
         
@@ -217,3 +235,56 @@ class ImageAgent(Agent):
         world_output = world_output.squeeze()
         
         return world_output
+
+    def set_destination(self, end_location, start_location=None):
+        """
+        This method creates a list of waypoints between a starting and ending location,
+        based on the route returned by the global router, and adds it to the local planner.
+        If no starting location is passed, the vehicle local planner's target location is chosen,
+        which corresponds (by default), to a location about 5 meters in front of the vehicle.
+
+            :param end_location (carla.Location): final location of the route
+            :param start_location (carla.Location): starting location of the route
+        """
+        if not start_location:
+            start_location = self._local_planner.target_waypoint.transform.location
+            clean_queue = True
+        else:
+            start_location = self._vehicle.get_location()
+            clean_queue = False
+
+        start_waypoint = self._map.get_waypoint(start_location)
+        end_waypoint = self._map.get_waypoint(end_location)
+
+        route_trace = self.trace_route(start_waypoint, end_waypoint)
+        self._local_planner.set_global_plan(route_trace, clean_queue=clean_queue)
+
+    def set_global_plan(self, plan, stop_waypoint_creation=True, clean_queue=True):
+        """
+        Adds a specific plan to the agent.
+
+            :param plan: list of [carla.Waypoint, RoadOption] representing the route to be followed
+            :param stop_waypoint_creation: stops the automatic random creation of waypoints
+            :param clean_queue: resets the current agent's plan
+        """
+        self._local_planner.set_global_plan(
+            plan,
+            stop_waypoint_creation=stop_waypoint_creation,
+            clean_queue=clean_queue
+        )
+
+    def trace_route(self, start_waypoint, end_waypoint):
+        """
+        Calculates the shortest route between a starting and ending waypoint.
+
+            :param start_waypoint (carla.Waypoint): initial waypoint
+            :param end_waypoint (carla.Waypoint): final waypoint
+        """
+        start_location = start_waypoint.transform.location
+        end_location = end_waypoint.transform.location
+        return self._global_planner.trace_route(start_location, end_location)
+
+    def done(self):
+        """Check whether the agent has reached its destination."""
+        #np.save('a.npy', np.array(self.debug_list,dtype=object), allow_pickle=True)
+        return self._local_planner.done()

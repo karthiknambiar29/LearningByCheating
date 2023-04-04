@@ -71,11 +71,16 @@ class ResnetBase(nn.Module):
         super().__init__()
         
 
-        conv, c = get_resnet(
+        conv_left, c = get_resnet(
                 backbone, input_channel=input_channel,
                 bias_first=bias_first, pretrained=pretrained)
 
-        self.conv = conv
+        conv_right, c = get_resnet(
+                backbone, input_channel=input_channel,
+                bias_first=bias_first, pretrained=pretrained)
+        
+        self.conv_left = conv_left
+        self.conv_right = conv_left
         self.c = c
 
         self.backbone = backbone
