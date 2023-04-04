@@ -1135,7 +1135,7 @@ class ModuleWorld(object):
             rotated_traffic_surface = rz(self.hero_traffic_light_surface, angle, 0.9).convert()
             rotated_self_surface = rz(self.hero_self_surface, angle, 0.9).convert()
 
-            center = (display.get_width() / 2, display.get_height() / 2)
+            center = (320 / 2, 320 / 2) #(display.get_width() / 2, display.get_height() / 2)
             rotation_map_pivot = rotated_map_surface.get_rect(center=center)
             rotation_lane_pivot = rotated_lane_surface.get_rect(center=center)
             rotation_vehicle_pivot = rotated_vehicle_surface.get_rect(center=center)

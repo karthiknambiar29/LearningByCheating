@@ -41,7 +41,7 @@ try:
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass
-sys.path.append('../../../lbc')
+sys.path.append('../../LearningByCheating')
 # ==============================================================================
 # -- Add PythonAPI for release mode --------------------------------------------
 # ==============================================================================
@@ -52,7 +52,8 @@ except IndexError:
 
 import carla
 from carla import ColorConverter as cc
-
+import sys
+sys.path.append('../PythonAPI/carla')
 from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 from agents.navigation.basic_agent import BasicAgent  # pylint: disable=import-error
 from agents.navigation.local_planner import RoadOption
@@ -61,7 +62,6 @@ try:
     sys.path.append('/opt/carla-simulator')
 except IndexError:
     pass
-import bird_view.utils.bz_utils as bzu
 from bird_view.utils.map_utils import Wrapper as map_utils
 from data_util import YamlConfig, load_config, visualize_birdview, get_actor_blueprints, get_birdview, process, carla_img_to_np, is_within_distance_ahead, find_weather_presets, get_actor_display_name, get_actor_blueprints
 
@@ -287,7 +287,7 @@ class World(object):
         vel = self.player.get_velocity()
         acc = self.player.get_acceleration()
         traffic_light = 1.0 if agent.traffic_light_manager() else 0.0
-        command = agent._local_planner.command
+        command = agent._local_planner.target_road_option
         control = self.player.get_control()
         result.update({
                 'position': np.float32([pos.x, pos.y, pos.z]),
@@ -696,7 +696,7 @@ def main():
     # logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
 
     # logging.info('listening to server %s:%s', args.host, args.port)
-    args = YamlConfig.from_nested_dicts(load_config('hound_straight.yaml'))
+    args = YamlConfig.from_nested_dicts(load_config('config/hound_straight.yaml'))
     try:
 
         game_loop(args)
