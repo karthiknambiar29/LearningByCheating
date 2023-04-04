@@ -1,0 +1,4 @@
+weather,start,target,success,t,total_lights_ran,total_lights,collided
+1.0,66.0,19.0,1.0,569.0,0.0,1.0,0.0
+3.0,66.0,19.0,True,486.0,0.0,1.0,False
+6.0,66.0,19.0,True,770.0,0.0,1.0,False
