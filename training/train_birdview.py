@@ -14,21 +14,24 @@ import sys
 try:
     sys.path.append(glob.glob('../PythonAPI')[0])
     sys.path.append(glob.glob('../bird_view')[0])
+    sys.path.append('../LearningByCheating')
 except IndexError as e:
     pass
+
 
 import utils.bz_utils as bzu
 
 from models.birdview import BirdViewPolicyModelSS
-from train_util import one_hot
+from utils.train_utils import one_hot
 from utils.datasets.birdview_lmdb import get_birdview as load_data
-
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter()
 
 # Maybe experiment with this eventually...
 BACKBONE = 'resnet18'
 GAP = 5
 N_STEP = 5
-SAVE_EPOCHS = [1, 2, 4, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1000]
+SAVE_EPOCHS = np.arange(1, 1000, 4)
 
 class LocationLoss(torch.nn.Module):
     def __init__(self, w=192, h=192, choice='l2'):
@@ -112,7 +115,7 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
     iterator = enumerate(iterator_tqdm)
 
     tick = time.time()
-
+    total_loss = []
     for i, (birdview, location, command, speed) in iterator:
         birdview = birdview.to(config['device'])
         command = one_hot(command).to(config['device'])
@@ -128,34 +131,35 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
             loss_mean.backward()
             optim.step()
 
-        should_log = False
-        should_log |= i % config['log_iterations'] == 0
-        should_log |= not is_train
-        should_log |= is_first_epoch
+        # should_log = False
+        # should_log |= i % config['log_iterations'] == 0
+        # should_log |= not is_train
+        # should_log |= is_first_epoch
 
-        if should_log:
-            metrics = dict()
-            metrics['loss'] = loss_mean.item()
+        # if should_log:
+        #     metrics = dict()
+        #     metrics['loss'] = loss_mean.item()
 
-            images = _log_visuals(
-                    birdview, speed, command, loss,
-                    location, pred_location)
+        #     images = _log_visuals(
+        #             birdview, speed, command, loss,
+        #             location, pred_location)
 
-            bzu.log.scalar(is_train=is_train, loss_mean=loss_mean.item())
-            bzu.log.image(is_train=is_train, birdview=images)
+        #     bzu.log.scalar(is_train=is_train, loss_mean=loss_mean.item())
+        #     bzu.log.image(is_train=is_train, birdview=images)
 
-        bzu.log.scalar(is_train=is_train, fps=1.0/(time.time() - tick))
+        # bzu.log.scalar(is_train=is_train, fps=1.0/(time.time() - tick))
 
         tick = time.time()
 
         if is_first_epoch and i == 10:
             iterator_tqdm.close()
             break
-
+        total_loss.append(loss_mean.item())
+    return sum(total_loss)/len(total_loss)
 
 def train(config):
-    bzu.log.init(config['log_dir'])
-    bzu.log.save_config(config)
+    # bzu.log.init(config['log_dir'])
+    # bzu.log.save_config(config)
 
     data_train, data_val = load_data(**config['data_args'])
     criterion = LocationLoss(w=192, h=192, choice='l1')
@@ -167,29 +171,33 @@ def train(config):
         checkpoint = str(checkpoints[-1])
         print ("load %s"%checkpoint)
         net.load_state_dict(torch.load(checkpoint))
+    # else:
+    #     net.load_state_dict(torch.load(config['model_weight']))
     
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
     for epoch in tqdm.tqdm(range(config['max_epoch']+1), desc='Epoch'):
-        train_or_eval(criterion, net, data_train, optim, True, config, epoch == 0)
-        train_or_eval(criterion, net, data_val, None, False, config, epoch == 0)
+        train_loss = train_or_eval(criterion, net, data_train, optim, True, config, epoch == 0)
+        val_loss = train_or_eval(criterion, net, data_val, None, False, config, epoch == 0)
+        writer.add_scalar('Loss/train', train_loss, epoch)
+        writer.add_scalar('Loss/val', val_loss, epoch)
 
         if epoch in SAVE_EPOCHS:
             torch.save(
                     net.state_dict(),
                     str(Path(config['log_dir']) / ('model-%d.th' % epoch)))
 
-        bzu.log.end_epoch()
+        # bzu.log.end_epoch()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir', required=True)
+    parser.add_argument('--log_dir',  default='../')
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=1000)
 
     # Dataset.
-    parser.add_argument('--dataset_dir', default='/raid0/dian/carla_0.9.6_data')
+    parser.add_argument('--dataset_dir', default='/media/storage/karthik/lbc/dd')
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--x_jitter', type=int, default=5)
     parser.add_argument('--y_jitter', type=int, default=0)

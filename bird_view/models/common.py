@@ -66,7 +66,23 @@ def make_arc(points, c, r):
     return np.stack([x1, x2], 1)
 
 
-class ResnetBase(nn.Module):
+class BirdViewResnetBase(nn.Module):
+    def __init__(self, backbone, input_channel=3, bias_first=True, pretrained=False):
+        super().__init__()
+        
+
+        conv, c = get_resnet(
+                backbone, input_channel=input_channel,
+                bias_first=bias_first, pretrained=pretrained)
+
+        self.conv = conv
+        self.c = c
+
+        self.backbone = backbone
+        self.input_channel = input_channel
+        self.bias_first = bias_first
+
+class ImageNetResnetBase(nn.Module):
     def __init__(self, backbone, input_channel=3, bias_first=True, pretrained=False):
         super().__init__()
         

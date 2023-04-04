@@ -44,8 +44,8 @@ def spatial_softmax_base():
             nn.ReLU(True))
 
 
-class BirdViewPolicyModelSS(common.ResnetBase):
-    def __init__(self, backbone='resnet18', input_channel=7, n_step=5, all_branch=False, **kwargs):
+class BirdViewPolicyModelSS(common.BirdViewResnetBase):
+    def __init__(self, backbone='resnet18', input_channel=8, n_step=5, all_branch=False, **kwargs):
         super().__init__(backbone=backbone, input_channel=input_channel, bias_first=False)
 
         self.deconv = spatial_softmax_base()

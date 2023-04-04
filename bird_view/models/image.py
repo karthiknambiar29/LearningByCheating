@@ -23,7 +23,7 @@ CROP_SIZE = 192
 PIXELS_PER_METER = 5
 
         
-class ImagePolicyModelSS(common.ResnetBase):
+class ImagePolicyModelSS(common.ImageNetResnetBase):
     def __init__(self, backbone, warp=False, pretrained=False, all_branch=False, **kwargs):
         super().__init__(backbone, pretrained=pretrained, input_channel=3, bias_first=False)
         
