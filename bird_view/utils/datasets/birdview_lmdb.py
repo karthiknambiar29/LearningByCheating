@@ -257,7 +257,7 @@ def get_birdview(
 
     def make_dataset(dir_name, is_train):
         _dataset_dir = str(Path(dataset_dir) / dir_name)
-        _samples = 1000 if is_train else 10
+        _samples = 123 if is_train else 30
         _crop_x_jitter = crop_x_jitter if is_train else 0
         _crop_y_jitter = crop_y_jitter if is_train else 0
         _angle_jitter = angle_jitter if is_train else 0
@@ -274,7 +274,7 @@ def get_birdview(
                 crop_x_jitter=_crop_x_jitter, crop_y_jitter=_crop_y_jitter,
                 angle_jitter=_angle_jitter,
                 max_frames=_max_frames)
-        data = Wrap(data, batch_size, _samples)
+        # data = Wrap(data, batch_size, _samples)
         data = _dataloader(data, batch_size, _num_workers)
 
         return data

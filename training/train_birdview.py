@@ -19,7 +19,8 @@ except IndexError as e:
     pass
 
 
-import utils.bz_utils as bzu
+# import utils.bz_utils as bzu
+import torchvision.utils as tv_utils
 
 from models.birdview import BirdViewPolicyModelSS
 from utils.train_utils import one_hot
@@ -56,6 +57,24 @@ class LocationLoss(torch.nn.Module):
 
         return self.loss(pred_location, gt_location)
 
+def _preprocess_image(x):
+    """
+    Takes -
+    list of (h, w, 3)
+    tensor of (n, h, 3)
+    """
+    if isinstance(x, list):
+        x = np.stack(x, 0).transpose(0, 3, 1, 2)
+    x = torch.Tensor(x)
+    if x.requires_grad:
+        x = x.detach()
+
+    if x.dim() == 3:
+        x = x.unsqueeze(1)
+    # x = torch.nn.functional.interpolate(x, 128, mode='nearest')
+    x = tv_utils.make_grid(x, padding=2, normalize=True, nrow=4)
+    x = x.cpu().numpy()
+    return x
 
 def _log_visuals(birdview, speed, command, loss, locations, _locations, size=16):
     import cv2
@@ -116,6 +135,7 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
 
     tick = time.time()
     total_loss = []
+    images_list = []
     for i, (birdview, location, command, speed) in iterator:
         birdview = birdview.to(config['device'])
         command = one_hot(command).to(config['device'])
@@ -133,10 +153,18 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
 
         # should_log = False
         # should_log |= i % config['log_iterations'] == 0
-        # should_log |= not is_train
         # should_log |= is_first_epoch
-
+        # images_list = []
         # if should_log:
+        images = _preprocess_image(_log_visuals(birdview, speed, command, loss,
+                location, pred_location))
+
+        images_list.append(images)
+            
+            # break
+            # for k, v in sorted(images.items()):
+            #     writer.add_image(k, _preprocess_image(v), 1)
+        #             writer.add_image('Image/train', img, epoch)
         #     metrics = dict()
         #     metrics['loss'] = loss_mean.item()
 
@@ -155,7 +183,7 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
             iterator_tqdm.close()
             break
         total_loss.append(loss_mean.item())
-    return sum(total_loss)/len(total_loss)
+    return sum(total_loss)/len(total_loss), images_list
 
 def train(config):
     # bzu.log.init(config['log_dir'])
@@ -177,24 +205,26 @@ def train(config):
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
     for epoch in tqdm.tqdm(range(config['max_epoch']+1), desc='Epoch'):
-        train_loss = train_or_eval(criterion, net, data_train, optim, True, config, epoch == 0)
-        val_loss = train_or_eval(criterion, net, data_val, None, False, config, epoch == 0)
+        train_loss, train_images = train_or_eval(criterion, net, data_train, optim, True, config, epoch == 0)
+        val_loss, val_images = train_or_eval(criterion, net, data_val, None, False, config, epoch == 0)
         writer.add_scalar('Loss/train', train_loss, epoch)
         writer.add_scalar('Loss/val', val_loss, epoch)
+        writer.add_image('Image/train', train_images[-1], epoch)
+        writer.add_image('Image/val', val_images[-1], epoch)
 
         if epoch in SAVE_EPOCHS:
             torch.save(
                     net.state_dict(),
-                    str(Path(config['log_dir']) / ('model-%d.th' % epoch)))
+                    str(Path(config['log_dir']) / ('birdview') / ('model-%d.th' % epoch)))
 
         # bzu.log.end_epoch()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir',  default='../')
+    parser.add_argument('--log_dir',  default='/home/moonlab/Documents/karthik/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
-    parser.add_argument('--max_epoch', default=1000)
+    parser.add_argument('--max_epoch', default=1)
 
     # Dataset.
     parser.add_argument('--dataset_dir', default='/media/storage/karthik/lbc/dd')
