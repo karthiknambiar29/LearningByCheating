@@ -14,6 +14,7 @@ import sys
 try:
     sys.path.append(glob.glob('../PythonAPI')[0])
     sys.path.append(glob.glob('../bird_view')[0])
+    sys.path.append(glob.glob('../drive')[0])
     sys.path.append('../LearningByCheating')
 except IndexError as e:
     pass
@@ -79,7 +80,7 @@ def _preprocess_image(x):
 def _log_visuals(birdview, speed, command, loss, locations, _locations, size=16):
     import cv2
     import numpy as np
-    import utils.carla_utils as cu
+    from data_util import visualize_birdview
 
     WHITE = [255, 255, 255]
     BLUE = [0, 0, 255]
@@ -91,7 +92,7 @@ def _log_visuals(birdview, speed, command, loss, locations, _locations, size=16)
     for i in range(min(birdview.shape[0], size)):
         loss_i = loss[i].sum()
         canvas = np.uint8(_numpy(birdview[i]).transpose(1, 2, 0) * 255).copy()
-        canvas = cu.visualize_birdview(canvas)
+        canvas = visualize_birdview(canvas)
         rows = [x * (canvas.shape[0] // 10) for x in range(10+1)]
         cols = [x * (canvas.shape[1] // 10) for x in range(10+1)]
 
@@ -194,8 +195,9 @@ def train(config):
     net = BirdViewPolicyModelSS(config['model_args']['backbone']).to(config['device'])
     
     if config['resume']:
-        log_dir = Path(config['log_dir'])
+        log_dir = Path(config['log_dir']+'/birdview')
         checkpoints = list(log_dir.glob('model-*.th'))
+        checkpoints = sorted(checkpoints, key=lambda x:int(str(x).split('-')[-1].split('.')[0]))
         checkpoint = str(checkpoints[-1])
         print ("load %s"%checkpoint)
         net.load_state_dict(torch.load(checkpoint))
@@ -204,7 +206,7 @@ def train(config):
     
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
-    for epoch in tqdm.tqdm(range(config['max_epoch']+1), desc='Epoch'):
+    for epoch in tqdm.tqdm(range(54,config['max_epoch']+1), desc='Epoch'):
         train_loss, train_images = train_or_eval(criterion, net, data_train, optim, True, config, epoch == 0)
         val_loss, val_images = train_or_eval(criterion, net, data_val, None, False, config, epoch == 0)
         writer.add_scalar('Loss/train', train_loss, epoch)

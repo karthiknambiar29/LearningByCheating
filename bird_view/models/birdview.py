@@ -67,7 +67,7 @@ class BirdViewPolicyModelSS(common.BirdViewResnetBase):
 
         h = torch.cat((h, velocity), dim=1)
         h = self.deconv(h)
-
+        print(h.shape)
         location_preds = [location_pred(h) for location_pred in self.location_pred]
         location_preds = torch.stack(location_preds, dim=1)
             
