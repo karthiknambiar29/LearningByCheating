@@ -224,7 +224,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_dir',  default='/home/moonlab/Documents/karthik/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
-    parser.add_argument('--max_epoch', default=1)
+    parser.add_argument('--max_epoch', default=1000)
 
     # Dataset.
     parser.add_argument('--dataset_dir', default='/media/storage/karthik/lbc/dd')
