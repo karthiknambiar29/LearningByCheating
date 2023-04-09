@@ -206,7 +206,7 @@ def train(config):
     
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
-    for epoch in tqdm.tqdm(range(54,config['max_epoch']+1), desc='Epoch'):
+    for epoch in tqdm.tqdm(range(162,config['max_epoch']+1), desc='Epoch'):
         train_loss, train_images = train_or_eval(criterion, net, data_train, optim, True, config, epoch == 0)
         val_loss, val_images = train_or_eval(criterion, net, data_val, None, False, config, epoch == 0)
         writer.add_scalar('Loss/train', train_loss, epoch)
