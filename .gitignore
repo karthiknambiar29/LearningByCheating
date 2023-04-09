@@ -16,6 +16,7 @@ README
 python_api.md
 # Byte-compiled / optimized / DLL files
 __pycache__/
+training/birdview/
 *.py[cod]
 
 # C extensions

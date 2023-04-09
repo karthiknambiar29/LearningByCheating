@@ -23,7 +23,7 @@ camera:
 
 # Carla Config
 verbose: false
-host: 127.0.0.1 # IP of the host server (default: 127.0.0.1)
+host: 172.17.0.9 # IP of the host server (default: 127.0.0.1)
 tm_port: 8000
 port: 2000
 width: 1920
