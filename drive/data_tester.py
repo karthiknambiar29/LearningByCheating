@@ -30,8 +30,8 @@ def crop_birdview(birdview, dx=0, dy=0):
 
     return birdview
 
-args = YamlConfig.from_nested_dicts(load_config('hound_straight.yaml'))
-env = lmdb.open('/media/storage/karthik/lbc/dd/007')
+args = YamlConfig.from_nested_dicts(load_config('config/hound_straight.yaml'))
+env = lmdb.open('/media/storage/karthik/lbc/dd/train/007')
 pygame.init()
 pygame.font.init()
 display = pygame.display.set_mode(
@@ -53,6 +53,8 @@ with env.begin() as txn:
         rgb_left = np.fromstring(txn.get(('rgb_left_%04d'%i).encode()), np.uint8).reshape(600,800,3)
         rgb_right = np.fromstring(txn.get(('rgb_right_%04d'%i).encode()), np.uint8).reshape(600,800,3)
         bird_view = np.fromstring(txn.get(('birdview_%04d'%i).encode()), np.uint8).reshape(320,320,8)
+        # removing traffic channels
+        bird_view = np.delete(bird_view, [3, 4, 5], axis=-1)
         measurement = np.frombuffer(txn.get(('measurements_%04d'%i).encode()), np.float32)
         display.blit(pygame.surfarray.make_surface(rgb_left.swapaxes(0, 1)), (0, 0))
         display.blit(pygame.surfarray.make_surface(rgb_right.swapaxes(0, 1)), (800, 0))

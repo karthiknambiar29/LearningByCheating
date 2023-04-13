@@ -137,13 +137,15 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
     tick = time.time()
     total_loss = []
     images_list = []
-    for i, (birdview, location, command, speed) in iterator:
+    for i, (birdview, location, command, speed, traffic) in iterator:
+        birdview = np.delete(birdview, [3, 4, 5], axis=1)
         birdview = birdview.to(config['device'])
         command = one_hot(command).to(config['device'])
         speed = speed.to(config['device'])
         location = location.float().to(config['device'])
+        traffic = traffic.to(config['device'])
 
-        pred_location = net(birdview, speed, command)
+        pred_location = net(birdview, speed, command, traffic)
         loss = criterion(pred_location, location)
         loss_mean = loss.mean()
 
@@ -195,7 +197,7 @@ def train(config):
     net = BirdViewPolicyModelSS(config['model_args']['backbone']).to(config['device'])
     
     if config['resume']:
-        log_dir = Path(config['log_dir']+'/birdview')
+        log_dir = Path(config['log_dir']+'/birdview_new')
         checkpoints = list(log_dir.glob('model-*.th'))
         checkpoints = sorted(checkpoints, key=lambda x:int(str(x).split('-')[-1].split('.')[0]))
         checkpoint = str(checkpoints[-1])
@@ -206,7 +208,7 @@ def train(config):
     
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
-    for epoch in tqdm.tqdm(range(162,config['max_epoch']+1), desc='Epoch'):
+    for epoch in tqdm.tqdm(range(0,config['max_epoch']+1), desc='Epoch'):
         train_loss, train_images = train_or_eval(criterion, net, data_train, optim, True, config, epoch == 0)
         val_loss, val_images = train_or_eval(criterion, net, data_val, None, False, config, epoch == 0)
         writer.add_scalar('Loss/train', train_loss, epoch)
@@ -217,7 +219,7 @@ def train(config):
         if epoch in SAVE_EPOCHS:
             torch.save(
                     net.state_dict(),
-                    str(Path(config['log_dir']) / ('birdview') / ('model-%d.th' % epoch)))
+                    str(Path(config['log_dir']) / ('birdview_new') / ('model-%d.th' % epoch)))
 
         # bzu.log.end_epoch()
 
