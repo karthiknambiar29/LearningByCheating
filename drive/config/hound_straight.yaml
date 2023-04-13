@@ -34,7 +34,7 @@ town: Town01
 
 # Traffic Config
 number_of_vehicles: 50
-number_of_walkers: 50
+number_of_walkers: 0
 safe: false
 filterv: vehicle.*
 generationv: All
