@@ -33,8 +33,8 @@ def regression_base():
 
 def spatial_softmax_base():
     return nn.Sequential(
-            nn.BatchNorm2d(640),
-            nn.ConvTranspose2d(640,256,3,2,1,1),
+            nn.BatchNorm2d(768), # changed from 640 (without traffic)
+            nn.ConvTranspose2d(768,256,3,2,1,1),
             nn.ReLU(True),
             nn.BatchNorm2d(256),
             nn.ConvTranspose2d(256,128,3,2,1,1),
@@ -45,7 +45,7 @@ def spatial_softmax_base():
 
 
 class BirdViewPolicyModelSS(common.BirdViewResnetBase):
-    def __init__(self, backbone='resnet18', input_channel=8, n_step=5, all_branch=False, **kwargs):
+    def __init__(self, backbone='resnet18', input_channel=5, n_step=5, all_branch=False, **kwargs):
         super().__init__(backbone=backbone, input_channel=input_channel, bias_first=False)
 
         self.deconv = spatial_softmax_base()
@@ -58,16 +58,16 @@ class BirdViewPolicyModelSS(common.BirdViewResnetBase):
         
         self.all_branch = all_branch
 
-    def forward(self, bird_view, velocity, command):
+    def forward(self, bird_view, velocity, command, traffic):
         h = self.conv(bird_view)
         b, c, kh, kw = h.size()
 
         # Late fusion for velocity
         velocity = velocity[...,None,None,None].repeat((1,128,kh,kw))
+        traffic = traffic[...,None,None,None].repeat((1,128,kh,kw))
 
-        h = torch.cat((h, velocity), dim=1)
+        h = torch.cat((h, velocity, traffic), dim=1)
         h = self.deconv(h)
-        print(h.shape)
         location_preds = [location_pred(h) for location_pred in self.location_pred]
         location_preds = torch.stack(location_preds, dim=1)
             

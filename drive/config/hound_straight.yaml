@@ -33,8 +33,8 @@ sync: true
 town: Town01
 
 # Traffic Config
-number_of_vehicles: 100
-number_of_walkers: 0
+number_of_vehicles: 0
+number_of_walkers: 10
 safe: false
 filterv: vehicle.*
 generationv: All
