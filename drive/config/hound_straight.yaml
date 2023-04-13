@@ -33,8 +33,8 @@ sync: true
 town: Town01
 
 # Traffic Config
-number_of_vehicles: 0
-number_of_walkers: 0
+number_of_vehicles: 50
+number_of_walkers: 50
 safe: false
 filterv: vehicle.*
 generationv: All
@@ -47,5 +47,5 @@ car_lights_on: True
 # Dataset Config
 frames_per_episode: 2000
 n_episodes: 21
-dataset_path: /media/storage/karthik/lbc/dd
+dataset_path: /home/carla/Desktop/dataset
 behaviour: normal
