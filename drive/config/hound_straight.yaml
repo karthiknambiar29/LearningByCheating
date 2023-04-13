@@ -33,6 +33,7 @@ sync: true
 town: Town01
 
 # Traffic Config
+
 number_of_vehicles: 50
 number_of_walkers: 0
 safe: false

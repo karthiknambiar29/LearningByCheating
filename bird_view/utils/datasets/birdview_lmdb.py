@@ -166,7 +166,7 @@ class BirdViewDataset(Dataset):
             regression_offset[i] = center - center_int
             indices[i] = center_int[1] * output_size + center_int[0]
 
-        return bird_view, np.array(locations), cmd, speed
+        return bird_view, np.array(locations), cmd, speed, traffic
 
 
 
