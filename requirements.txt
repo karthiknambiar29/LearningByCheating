@@ -15,7 +15,4 @@ scipy==1.7.3
 Shapely==1.8.5.post1
 tensorboard==2.11.0
 tensorboardX==2.5.1
-torch==1.13.0
-torchaudio==0.13.0
-torchvision==0.14.0
 tqdm==4.64.1
