@@ -15,23 +15,45 @@ import cv2
 try:
     sys.path.append(glob.glob('../PythonAPI')[0])
     sys.path.append(glob.glob('../bird_view')[0])
+    sys.path.append(glob.glob('../drive')[0])
+    sys.path.append('../LearningByCheating')
 except IndexError as e:
     pass
 
-import utils.bz_utils as bzu
 
+import torchvision.utils as tv_utils
 from models.birdview import BirdViewPolicyModelSS
 from models.image import ImagePolicyModelSS
-from train_util import one_hot
+from utils.train_utils import one_hot
 from utils.datasets.image_lmdb import get_image as load_data
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter()
 
 BACKBONE = 'resnet34'
 GAP = 5
 N_STEP = 5
 PIXELS_PER_METER = 5
 CROP_SIZE = 192
-SAVE_EPOCHS = [1, 2, 4, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1000]
+SAVE_EPOCHS = np.arange(1, 1000, 4)
 
+def _preprocess_image(x):
+    """
+    Takes -
+    list of (h, w, 3)
+    tensor of (n, h, 3)
+    """
+    if isinstance(x, list):
+        x = np.stack(x, 0).transpose(0, 3, 1, 2)
+    x = torch.Tensor(x)
+    if x.requires_grad:
+        x = x.detach()
+
+    if x.dim() == 3:
+        x = x.unsqueeze(1)
+    # x = torch.nn.functional.interpolate(x, 128, mode='nearest')
+    x = tv_utils.make_grid(x, padding=2, normalize=True, nrow=4)
+    x = x.cpu().numpy()
+    return x
 
 class CoordConverter():
     def __init__(self, w=800, h=600, fov=90, world_y=0.88, fixed_offset=4.0, device='cuda'):
@@ -88,10 +110,10 @@ class LocationLoss(torch.nn.Module):
         locations = locations/(0.5*self._img_size) - 1
         return torch.mean(torch.abs(pred_locations - locations), dim=(1,2))
 
-def _log_visuals(rgb_image, birdview, speed, command, loss, pred_locations, teac_locations, _teac_locations, size=32):
+def _log_visuals(rgb_image, birdview, speed, traffic, command, loss, pred_locations, teac_locations, _teac_locations, size=32):
     import cv2
     import numpy as np
-    import utils.carla_utils as cu
+    from data_util import visualize_birdview
 
     WHITE = [255, 255, 255]
     BLUE = [0, 0, 255]
@@ -103,7 +125,7 @@ def _log_visuals(rgb_image, birdview, speed, command, loss, pred_locations, teac
     for i in range(min(birdview.shape[0], size)):
         loss_i = loss[i].sum()
         canvas = np.uint8(_numpy(birdview[i]).transpose(1, 2, 0) * 255).copy()
-        canvas = cu.visualize_birdview(canvas)
+        canvas = visualize_birdview(canvas)
         rgb = np.uint8(_numpy(rgb_image[i]).transpose(1, 2, 0) * 255).copy()
         rows = [x * (canvas.shape[0] // 10) for x in range(10+1)]
         cols = [x * (canvas.shape[1] // 10) for x in range(10+1)]
@@ -140,6 +162,8 @@ def _log_visuals(rgb_image, birdview, speed, command, loss, pred_locations, teac
 
         _write('Command: %s' % _command, 1, 0)
         _write('Loss: %.2f' % loss[i].item(), 2, 0)
+        _write('Speed: %.2f' % speed, 3, 0)
+        _write('Traffic: %.2f' % traffic, 4, 0)
         
         
         images.append((loss[i].item(), _stick_together(rgb, canvas)))
@@ -161,18 +185,19 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
     iterator_tqdm = tqdm.tqdm(data, desc=desc, total=total)
     iterator = enumerate(iterator_tqdm)
 
-    tick = time.time()
-
-    for i, (rgb_image, birdview, location, command, speed) in iterator:
+    total_loss = []
+    images_list = []
+    for i, (rgb_image, birdview, location, command, speed, traffic) in iterator:
         rgb_image = rgb_image.to(config['device'])
         birdview = birdview.to(config['device'])
         command = one_hot(command).to(config['device'])
         speed = speed.to(config['device'])
+        traffic = traffic.to(config['device'])
         
         with torch.no_grad():
-            _teac_location = teacher_net(birdview, speed, command)
+            _teac_location = teacher_net(birdview, speed, command, traffic)
         
-        _pred_location = net(rgb_image, speed, command)
+        _pred_location = net(rgb_image, speed, command, traffic)
         pred_location = (_pred_location + 1) * coord_converter._img_size/2
         teac_location = coord_converter(_teac_location)
         
@@ -184,37 +209,23 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
             loss_mean.backward()
             optim.step()
 
-        should_log = False
-        should_log |= i % config['log_iterations'] == 0
-        should_log |= not is_train
-        should_log |= is_first_epoch
 
-        if should_log:
-            metrics = dict()
-            metrics['loss'] = loss_mean.item()
+        images = _preprocess_image(_log_visuals(
+                rgb_image, birdview, speed, traffic, command, loss,
+                pred_location, teac_location, _teac_location))
 
-            images = _log_visuals(
-                    rgb_image, birdview, speed, command, loss,
-                    pred_location, teac_location, _teac_location)
+        images_list.append(images)
 
-            bzu.log.scalar(is_train=is_train, loss_mean=loss_mean.item())
-            bzu.log.image(is_train=is_train, birdview=images)
-
-        bzu.log.scalar(is_train=is_train, fps=1.0/(time.time() - tick))
-
-        tick = time.time()
 
         if is_first_epoch and i == 10:
             iterator_tqdm.close()
             break
-
+        total_loss.append(loss_mean.item())
+    return sum(total_loss)/len(total_loss), images_list
 
 
 
 def train(config):
-    bzu.log.init(config['log_dir'])
-    bzu.log.save_config(config)
-    teacher_config = bzu.log.load_config(config['teacher_args']['model_path'])
     
     data_train, data_val = load_data(**config['data_args'])
     criterion = LocationLoss(**config['camera_args'])
@@ -222,28 +233,34 @@ def train(config):
         config['model_args']['backbone'],
         pretrained=config['model_args']['imagenet_pretrained']
     ).to(config['device'])
-    teacher_net = BirdViewPolicyModelSS(teacher_config['model_args']['backbone']).to(config['device'])
+    teacher_net = BirdViewPolicyModelSS(backbone='resnet18').to(config['device'])
     teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
     teacher_net.eval()
-    
+    checkpoint = -1
     coord_converter = CoordConverter(**config['camera_args'])
-    
+    if config['resume']:
+        log_dir = Path(config['log_dir']+'/image_new')
+        checkpoints = list(log_dir.glob('model-*.th'))
+        checkpoints = sorted(checkpoints, key=lambda x:int(str(x).split('-')[-1].split('.')[0]))
+        checkpoint = str(checkpoints[-1])
+        print ("load %s"%checkpoint)
+        net.load_state_dict(torch.load(checkpoint))
+
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
-    for epoch in tqdm.tqdm(range(config['max_epoch']+1), desc='Epoch'):
+    for epoch in tqdm.tqdm(range(int(checkpoint)+1, config['max_epoch']+1), desc='Epoch'):
         train_or_eval(coord_converter, criterion, net, teacher_net, data_train, optim, True, config, epoch == 0)
         train_or_eval(coord_converter, criterion, net, teacher_net, data_val, None, False, config, epoch == 0)
 
         if epoch in SAVE_EPOCHS:
             torch.save(
                     net.state_dict(),
-                    str(Path(config['log_dir']) / ('model-%d.th' % epoch)))
+                    str(Path(config['log_dir']) / ('image_new') / ('model-%d.th' % epoch)))
 
-        bzu.log.end_epoch()
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir', required=True)
+    parser.add_argument('--log_dir', default='/home/moonlab/Documents/karthik/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=2)
 
@@ -256,10 +273,10 @@ if __name__ == '__main__':
     parser.add_argument('--fixed_offset', type=float, default=4.0)
 
     # Dataset.
-    parser.add_argument('--dataset_dir', default='/raid0/dian/carla_0.9.6_data')
+    parser.add_argument('--dataset_dir', default='/media/storage/karthik/lbc/dd')
     parser.add_argument('--batch_size', type=int, default=96)
-    parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default=None)
-    
+    parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default='medium')
+    parser.add_argument('--resume', action='store_true')
     # Optimizer.
     parser.add_argument('--lr', type=float, default=1e-4)
 
@@ -285,10 +302,10 @@ if __name__ == '__main__':
                 'backbone': BACKBONE,
                 },
             'camera_args': {
-                'w': 384,
-                'h': 160,
+                'w': 800,
+                'h': 600,
                 'fov': 90,
-                'world_y': 1.4,
+                'world_y': 0.88,
                 'fixed_offset': parsed.fixed_offset,
             },
             'teacher_args' : {

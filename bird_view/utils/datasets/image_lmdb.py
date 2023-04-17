@@ -29,7 +29,7 @@ def world_to_pixel(x,y,ox,oy,ori_ox, ori_oy, offset=(-80,160), size=320, angle_j
     return np.array([pixel_x, pixel_y]) + offset
     
 
-def project_to_image(pixel_x, pixel_y, tran=[0.,0.,0.], rot=[0.,0.,0.], fov=90, w=384, h=160, camera_world_z=1.4, crop_size=192):
+def project_to_image(pixel_x, pixel_y, tran=[0.,0.,0.], rot=[0.,0.,0.], fov=90, w=800, h=600, camera_world_z=0.88, crop_size=192):
     # Apply fixed offset tp pixel_y
     pixel_y -= 2*PIXELS_PER_METER
     
@@ -227,7 +227,7 @@ class ImageDataset(Dataset):
             
         self.batch_read_number += 1
        
-        return rgb_images_left, rgb_images_right, bird_view, np.array(locations), cmd, speed
+        return rgb_images_left, rgb_images_right, bird_view, np.array(locations), cmd, speed, traffic
 
         
 def load_image_data(dataset_path, 

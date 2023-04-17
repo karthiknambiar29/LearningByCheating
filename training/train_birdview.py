@@ -20,7 +20,7 @@ except IndexError as e:
     pass
 
 
-# import utils.bz_utils as bzu
+
 import torchvision.utils as tv_utils
 
 from models.birdview import BirdViewPolicyModelSS
@@ -134,7 +134,6 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
     iterator_tqdm = tqdm.tqdm(data, desc=desc, total=total)
     iterator = enumerate(iterator_tqdm)
 
-    tick = time.time()
     total_loss = []
     images_list = []
     for i, (birdview, location, command, speed, traffic) in iterator:
@@ -154,34 +153,11 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
             loss_mean.backward()
             optim.step()
 
-        # should_log = False
-        # should_log |= i % config['log_iterations'] == 0
-        # should_log |= is_first_epoch
-        # images_list = []
-        # if should_log:
         images = _preprocess_image(_log_visuals(birdview, speed, command, loss,
                 location, pred_location))
 
         images_list.append(images)
             
-            # break
-            # for k, v in sorted(images.items()):
-            #     writer.add_image(k, _preprocess_image(v), 1)
-        #             writer.add_image('Image/train', img, epoch)
-        #     metrics = dict()
-        #     metrics['loss'] = loss_mean.item()
-
-        #     images = _log_visuals(
-        #             birdview, speed, command, loss,
-        #             location, pred_location)
-
-        #     bzu.log.scalar(is_train=is_train, loss_mean=loss_mean.item())
-        #     bzu.log.image(is_train=is_train, birdview=images)
-
-        # bzu.log.scalar(is_train=is_train, fps=1.0/(time.time() - tick))
-
-        tick = time.time()
-
         if is_first_epoch and i == 10:
             iterator_tqdm.close()
             break
@@ -189,8 +165,7 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
     return sum(total_loss)/len(total_loss), images_list
 
 def train(config):
-    # bzu.log.init(config['log_dir'])
-    # bzu.log.save_config(config)
+
 
     data_train, data_val = load_data(**config['data_args'])
     criterion = LocationLoss(w=192, h=192, choice='l1')
@@ -221,7 +196,6 @@ def train(config):
                     net.state_dict(),
                     str(Path(config['log_dir']) / ('birdview_new') / ('model-%d.th' % epoch)))
 
-        # bzu.log.end_epoch()
 
 
 if __name__ == '__main__':
