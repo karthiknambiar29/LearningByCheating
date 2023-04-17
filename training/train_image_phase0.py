@@ -238,6 +238,7 @@ def train(config):
     teacher_net.eval()
     checkpoint = -1
     coord_converter = CoordConverter(**config['camera_args'])
+
     if config['resume']:
         log_dir = Path(config['log_dir']+'/image_new')
         checkpoints = list(log_dir.glob('model-*.th'))
@@ -283,6 +284,7 @@ if __name__ == '__main__':
     parsed = parser.parse_args()
     
     config = {
+            'resume': parsed.resume,
             'log_dir': parsed.log_dir,
             'log_iterations': parsed.log_iterations,
             'max_epoch': parsed.max_epoch,

@@ -11,7 +11,8 @@ from .controller import CustomController, PIDController
 from .controller import ls_circle
 
 import sys
-sys.path.append('../../PythonAPI')
+sys.path.append('../PythonAPI')
+sys.path.append('../PythonAPI/carla')
 from agents.navigation.local_planner import LocalPlanner
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 
