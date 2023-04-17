@@ -260,7 +260,7 @@ def train(config):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir', default='/home/moonlab/Documents/karthik/LearningByCheating/training')
+    parser.add_argument('--log_dir', default='/workspace/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=2)
 
@@ -268,12 +268,12 @@ if __name__ == '__main__':
     parser.add_argument('--pretrained', action='store_true')
     
     # Teacher.
-    parser.add_argument('--teacher_path', required=True)
+    parser.add_argument('--teacher_path', default='/workspace/LearningByCheating/training/birdview_new/model-861.th')
     
     parser.add_argument('--fixed_offset', type=float, default=4.0)
 
     # Dataset.
-    parser.add_argument('--dataset_dir', default='/media/storage/karthik/lbc/dd')
+    parser.add_argument('--dataset_dir', default='/workspace/dataset')
     parser.add_argument('--batch_size', type=int, default=96)
     parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default='medium')
     parser.add_argument('--resume', action='store_true')
