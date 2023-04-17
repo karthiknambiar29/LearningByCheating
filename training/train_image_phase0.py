@@ -110,7 +110,7 @@ class LocationLoss(torch.nn.Module):
         locations = locations/(0.5*self._img_size) - 1
         return torch.mean(torch.abs(pred_locations - locations), dim=(1,2))
 
-def _log_visuals(rgb_image, birdview, speed, traffic, command, loss, pred_locations, teac_locations, _teac_locations, size=32):
+def _log_visuals(rgb_image_right, birdview, speed, traffic, command, loss, pred_locations, teac_locations, _teac_locations, size=32):
     import cv2
     import numpy as np
     from data_util import visualize_birdview
@@ -126,7 +126,7 @@ def _log_visuals(rgb_image, birdview, speed, traffic, command, loss, pred_locati
         loss_i = loss[i].sum()
         canvas = np.uint8(_numpy(birdview[i]).transpose(1, 2, 0) * 255).copy()
         canvas = visualize_birdview(canvas)
-        rgb = np.uint8(_numpy(rgb_image[i]).transpose(1, 2, 0) * 255).copy()
+        rgb = np.uint8(_numpy(rgb_image_right[i]).transpose(1, 2, 0) * 255).copy()
         rows = [x * (canvas.shape[0] // 10) for x in range(10+1)]
         cols = [x * (canvas.shape[1] // 10) for x in range(10+1)]
 
@@ -187,8 +187,9 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
 
     total_loss = []
     images_list = []
-    for i, (rgb_image, birdview, location, command, speed, traffic) in iterator:
-        rgb_image = rgb_image.to(config['device'])
+    for i, (rgb_image_left, rgb_image_right, birdview, location, command, speed, traffic) in iterator:
+        rgb_image_left = rgb_image_left.to(config['device'])
+        rgb_image_right = rgb_image_right.to(config['device'])
         birdview = birdview.to(config['device'])
         command = one_hot(command).to(config['device'])
         speed = speed.to(config['device'])
@@ -197,7 +198,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
         with torch.no_grad():
             _teac_location = teacher_net(birdview, speed, command, traffic)
         
-        _pred_location = net(rgb_image, speed, command, traffic)
+        _pred_location = net(rgb_image_left, rgb_image_right, speed, command, traffic)
         pred_location = (_pred_location + 1) * coord_converter._img_size/2
         teac_location = coord_converter(_teac_location)
         
@@ -210,8 +211,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
             optim.step()
 
 
-        images = _preprocess_image(_log_visuals(
-                rgb_image, birdview, speed, traffic, command, loss,
+        images = _preprocess_image(_log_visuals(rgb_image_right, birdview, speed, traffic, command, loss,
                 pred_location, teac_location, _teac_location))
 
         images_list.append(images)
