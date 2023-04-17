@@ -81,13 +81,14 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
 
         h_l= self.conv_left(image_left)
         h_r= self.conv_right(image_right)
-        b, c, kh, kw = h.size()
+        b, c, kh, kw = h_l.size()
         
         # Late fusion for velocity
         velocity = velocity[...,None,None,None].repeat((1,128,kh,kw))
         traffic = traffic[...,None,None,None].repeat((1,128,kh,kw))
         
         h = torch.cat((h_l, velocity, h_r, velocity, traffic), dim=1)
+        print(h.shape)
         h = self.deconv(h)
         
         location_preds = [location_pred(h) for location_pred in self.location_pred]
