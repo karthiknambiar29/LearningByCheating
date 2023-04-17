@@ -65,7 +65,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         
         self.all_branch = all_branch
 
-    def forward(self, image_left, image_right, velocity, command):
+    def forward(self, image_left, image_right, velocity, command, traffic):
         if self.warp:
             warped_image = tgm.warp_perspective(image_left, self.M, dsize=(192, 192))
             resized_image = resize_images(image_left)
@@ -84,8 +84,9 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         
         # Late fusion for velocity
         velocity = velocity[...,None,None,None].repeat((1,128,kh,kw))
+        traffic = traffic[...,None,None,None].repeat((1,128,kh,kw))
         
-        h = torch.cat((h_l, velocity, h_r, velocity), dim=1)
+        h = torch.cat((h_l, velocity, h_r, velocity, traffic), dim=1)
         h = self.deconv(h)
         
         location_preds = [location_pred(h) for location_pred in self.location_pred]

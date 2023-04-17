@@ -34,7 +34,7 @@ SAVE_EPOCHS = [1, 2, 4, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1000]
 
 
 class CoordConverter():
-    def __init__(self, w=384, h=160, fov=90, world_y=1.4, fixed_offset=4.0, device='cuda'):
+    def __init__(self, w=800, h=600, fov=90, world_y=0.88, fixed_offset=4.0, device='cuda'):
         self._w = w
         self._h = h
         self._img_size = torch.FloatTensor([w,h]).to(device)
@@ -55,7 +55,7 @@ class CoordConverter():
         N = len(xy)
         xyz = np.zeros((N,3))
         xyz[:,0] = xy[:,0]
-        xyz[:,1] = 1.4
+        xyz[:,1] = 0.88
         xyz[:,2] = xy[:,1]
     
         image_xy, _ = cv2.projectPoints(xyz, self._tran, self._rot, self._A, None)
@@ -79,7 +79,7 @@ class CoordConverter():
         return teacher_locations
 
 class LocationLoss(torch.nn.Module):
-    def __init__(self, w=384, h=160, device='cuda', **kwargs):
+    def __init__(self, w=800, h=600, device='cuda', **kwargs):
         super().__init__()
         self._img_size = torch.FloatTensor([w,h]).to(device)
     
