@@ -188,6 +188,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
     total_loss = []
     images_list = []
     for i, (rgb_image_left, rgb_image_right, birdview, location, command, speed, traffic) in iterator:
+        birdview = np.delete(birdview, [3, 4, 5], axis=1)
         rgb_image_left = rgb_image_left.to(config['device'])
         rgb_image_right = rgb_image_right.to(config['device'])
         birdview = birdview.to(config['device'])
