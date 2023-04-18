@@ -40,7 +40,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         )
         
         self.deconv = nn.Sequential(
-            nn.BatchNorm2d(2*self.c + 3*128),
+            nn.BatchNorm2d(self.c + 128),
             nn.ConvTranspose2d(self.c + 128,256,3,2,1,1),
             nn.ReLU(True),
             nn.BatchNorm2d(256),
@@ -74,8 +74,9 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
 
             warped_image = tgm.warp_perspective(image_right, self.M, dsize=(192, 192))
             resized_image = resize_images(image_right)
-            image_right = torch.cat([warped_image, resized_image], 1)
-        
+        image_right = torch.cat([warped_image, resized_image], 1)
+        image_left = torch.randn(32,384, 160, device='cuda')
+        image_right = torch.randn(32, 384, 160, device='cuda')
         image_left = self.rgb_transform(image_left)
         image_right = self.rgb_transform(image_right)
 
@@ -90,7 +91,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         h = torch.cat((h_l, velocity, h_r, velocity, traffic), dim=1)
         print(h.shape)
         h = self.deconv(h)
-        
+        print(h.shape)
         location_preds = [location_pred(h) for location_pred in self.location_pred]
         location_preds = torch.stack(location_preds, dim=1)
         location_pred = common.select_branch(location_preds, command)

@@ -276,7 +276,7 @@ if __name__ == '__main__':
 
     # Dataset.
     parser.add_argument('--dataset_dir', default='/workspace/dataset')
-    parser.add_argument('--batch_size', type=int, default=96)
+    parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default='medium')
     parser.add_argument('--resume', action='store_true')
     # Optimizer.
