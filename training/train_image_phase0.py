@@ -284,6 +284,7 @@ if __name__ == '__main__':
     parsed = parser.parse_args()
     
     config = {
+            'resume': parsed.resume,
             'log_dir': parsed.log_dir,
             'log_iterations': parsed.log_iterations,
             'max_epoch': parsed.max_epoch,

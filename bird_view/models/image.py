@@ -11,7 +11,8 @@ from .controller import CustomController, PIDController
 from .controller import ls_circle
 
 import sys
-sys.path.append('../../PythonAPI')
+sys.path.append('../PythonAPI')
+sys.path.append('../PythonAPI/carla')
 from agents.navigation.local_planner import LocalPlanner
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 
@@ -40,7 +41,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         
         self.deconv = nn.Sequential(
             nn.BatchNorm2d(2*self.c + 3*128),
-            nn.ConvTranspose2d(self.c + 128,256,3,2,1,1),
+            nn.ConvTranspose2d(2*self.c + 3*128,256,3,2,1,1),
             nn.ReLU(True),
             nn.BatchNorm2d(256),
             nn.ConvTranspose2d(256,128,3,2,1,1),
@@ -80,7 +81,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
 
         h_l= self.conv_left(image_left)
         h_r= self.conv_right(image_right)
-        b, c, kh, kw = h.size()
+        b, c, kh, kw = h_l.size()
         
         # Late fusion for velocity
         velocity = velocity[...,None,None,None].repeat((1,128,kh,kw))
