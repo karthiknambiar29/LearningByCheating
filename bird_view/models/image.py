@@ -54,7 +54,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         if warp:
             ow,oh = 48,48
         else:
-            ow,oh = 96,40 
+            ow,oh = 200,152 # 96,40 
         
         self.location_pred = nn.ModuleList([
             nn.Sequential(
@@ -75,7 +75,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
             warped_image = tgm.warp_perspective(image_right, self.M, dsize=(192, 192))
             resized_image = resize_images(image_right)
             image_right = torch.cat([warped_image, resized_image], 1)
-        
+
         image_left = self.rgb_transform(image_left)
         image_right = self.rgb_transform(image_right)
 
