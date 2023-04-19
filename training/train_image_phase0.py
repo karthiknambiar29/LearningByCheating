@@ -56,7 +56,7 @@ def _preprocess_image(x):
     return x
 
 class CoordConverter():
-    def __init__(self, w=800, h=600, fov=90, world_y=0.88, fixed_offset=4.0, device='cuda'):
+    def __init__(self, w=800, h=600, fov=90, world_y=0.88, fixed_offset=3.5, device='cuda'):
         self._w = w
         self._h = h
         self._img_size = torch.FloatTensor([w,h]).to(device)
@@ -72,7 +72,7 @@ class CoordConverter():
             [0, f, self._h/2],
             [0., 0., 1.]
         ])
-        
+     
     def _project_image_xy(self, xy):
         N = len(xy)
         xyz = np.zeros((N,3))
