@@ -162,8 +162,8 @@ def _log_visuals(rgb_image_right, birdview, speed, traffic, command, loss, pred_
 
         _write('Command: %s' % _command, 1, 0)
         _write('Loss: %.2f' % loss[i].item(), 2, 0)
-        _write('Speed: %.2f' % speed, 3, 0)
-        _write('Traffic: %.2f' % traffic, 4, 0)
+        _write('Speed: %.2f' % speed[0], 3, 0)
+        _write('Traffic: %.2f' % traffic[0], 4, 0)
         
         
         images.append((loss[i].item(), _stick_together(rgb, canvas)))
