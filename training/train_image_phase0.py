@@ -64,7 +64,7 @@ class CoordConverter():
         self._world_y = world_y
         self._fixed_offset = fixed_offset
         
-        self._tran = np.array([0.,0.,0.])
+        self._tran = np.array([0.15,0.88,2.2])
         self._rot  = np.array([0.,0.,0.])
         f = self._w /(2 * np.tan(self._fov * np.pi / 360))
         self._A = np.array([
@@ -77,7 +77,7 @@ class CoordConverter():
         N = len(xy)
         xyz = np.zeros((N,3))
         xyz[:,0] = xy[:,0]
-        xyz[:,1] = 0.88
+        # xyz[:,1] = 0.88
         xyz[:,2] = xy[:,1]
     
         image_xy, _ = cv2.projectPoints(xyz, self._tran, self._rot, self._A, None)
