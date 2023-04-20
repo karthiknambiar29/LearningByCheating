@@ -64,7 +64,7 @@ class CoordConverter():
         self._world_y = world_y
         self._fixed_offset = fixed_offset
         
-        self._tran = np.array([0.15,0.88,2.2])
+        self._tran = np.array([0.0,0.88,2.2])
         self._rot  = np.array([0.,0.,0.])
         f = self._w /(2 * np.tan(self._fov * np.pi / 360))
         self._A = np.array([
@@ -110,7 +110,7 @@ class LocationLoss(torch.nn.Module):
         locations = locations/(0.5*self._img_size) - 1
         return torch.mean(torch.abs(pred_locations - locations), dim=(1,2))
 
-def _log_visuals(rgb_image_right, birdview, speed, traffic, command, loss, pred_locations, teac_locations, _teac_locations, size=32):
+def _log_visuals(rgb_image_left, birdview, speed, traffic, command, loss, pred_locations, teac_locations, _teac_locations, size=32):
     import cv2
     import numpy as np
     from data_util import visualize_birdview
@@ -126,7 +126,7 @@ def _log_visuals(rgb_image_right, birdview, speed, traffic, command, loss, pred_
         loss_i = loss[i].sum()
         canvas = np.uint8(_numpy(birdview[i]).transpose(1, 2, 0) * 255).copy()
         canvas = visualize_birdview(canvas)
-        rgb = np.uint8(_numpy(rgb_image_right[i]).transpose(1, 2, 0) * 255).copy()
+        rgb = np.uint8(_numpy(rgb_image_left[i]).transpose(1, 2, 0) * 255).copy()
         rows = [x * (canvas.shape[0] // 10) for x in range(10+1)]
         cols = [x * (canvas.shape[1] // 10) for x in range(10+1)]
 
@@ -138,7 +138,7 @@ def _log_visuals(rgb_image_right, birdview, speed, traffic, command, loss, pred_
         def _dot(_canvas, i, j, color, radius=2):
             x, y = int(j), int(i)
             _canvas[x-radius:x+radius+1, y-radius:y+radius+1] = color
-        
+              
         def _stick_together(a, b):
             h = min(a.shape[0], b.shape[0])
     
@@ -274,7 +274,7 @@ if __name__ == '__main__':
     # Teacher.
     parser.add_argument('--teacher_path', required=True)
     
-    parser.add_argument('--fixed_offset', type=float, default=4.0)
+    parser.add_argument('--fixed_offset', type=float, default=3.5)
 
     # Dataset.
     parser.add_argument('--dataset_dir', default='/media/storage/karthik/lbc/dd')
