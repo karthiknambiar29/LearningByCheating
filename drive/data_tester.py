@@ -31,7 +31,7 @@ def crop_birdview(birdview, dx=0, dy=0):
     return birdview
 
 args = YamlConfig.from_nested_dicts(load_config('config/hound_straight.yaml'))
-env = lmdb.open('/media/storage/karthik/lbc/dd/train/007')
+env = lmdb.open('/home/moonlab/Documents/karthik/lbc/000')
 pygame.init()
 pygame.font.init()
 display = pygame.display.set_mode(
@@ -49,7 +49,7 @@ with env.begin() as txn:
     # measurement = np.frombuffer(txn.get(('rgb_left_%04d'%i).encode()), np.float32)
 
     length = int(txn.get(str('len').encode()))
-    for i in range(length):
+    for i in range(length-25):
         rgb_left = np.fromstring(txn.get(('rgb_left_%04d'%i).encode()), np.uint8).reshape(600,800,3)
         rgb_right = np.fromstring(txn.get(('rgb_right_%04d'%i).encode()), np.uint8).reshape(600,800,3)
         bird_view = np.fromstring(txn.get(('birdview_%04d'%i).encode()), np.uint8).reshape(320,320,8)
