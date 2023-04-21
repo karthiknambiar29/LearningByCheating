@@ -97,7 +97,6 @@ class CoordConverter():
         teacher_locations = self._project_image_xy(np.reshape(teacher_locations, (N*N_STEP, 2)))
         teacher_locations = np.reshape(teacher_locations, (N,N_STEP,2))
         teacher_locations = torch.FloatTensor(teacher_locations)
-        print(teacher_locations.shape)
         return teacher_locations
 
 class LocationLoss(torch.nn.Module):

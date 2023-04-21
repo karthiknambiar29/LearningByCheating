@@ -18,13 +18,13 @@ import augmenter
 PIXEL_OFFSET = 10
 PIXELS_PER_METER = 5
     
-def world_to_pixel(x,y,ox,oy,ori_ox, ori_oy, offset=(-80,160), size=320, angle_jitter=15):
+def world_to_pixel(x,y,ox,oy,ori_ox, ori_oy, offset=(0,0), size=320, angle_jitter=15):
     pixel_dx, pixel_dy = (x-ox)*PIXELS_PER_METER, (y-oy)*PIXELS_PER_METER
     
     pixel_x = pixel_dx*ori_ox+pixel_dy*ori_oy
     pixel_y = -pixel_dx*ori_oy+pixel_dy*ori_ox
     
-    pixel_x = 320-pixel_x
+   # pixel_x = 320-pixel_x
     
     return np.array([pixel_x, pixel_y]) + offset
     

@@ -186,7 +186,7 @@ class BiasedBirdViewDataset(BirdViewDataset):
             index = self.idx_map[idx]
             
             measurement = np.frombuffer(lmdb_txn.get(('measurements_%04d'%index).encode()), np.float32)
-            ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear = measurement
+            ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic  = measurement
             speed = np.linalg.norm([vx,vy,vz])
             
             if cmd != 4 and speed > 1.0:
@@ -257,7 +257,7 @@ def get_birdview(
 
     def make_dataset(dir_name, is_train):
         _dataset_dir = str(Path(dataset_dir) / dir_name)
-        _samples = 123 if is_train else 30
+        _samples = 1000 if is_train else 10
         _crop_x_jitter = crop_x_jitter if is_train else 0
         _crop_y_jitter = crop_y_jitter if is_train else 0
         _angle_jitter = angle_jitter if is_train else 0
