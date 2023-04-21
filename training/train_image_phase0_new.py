@@ -155,7 +155,7 @@ def _log_visuals(rgb_image_left, birdview, speed, traffic, command, loss, pred_l
 
         _dot(canvas, 0, 0, WHITE)
 
-        for x, y in (_teac_locations[i] + 1) * (0.5 * CROP_SIZE): _dot(canvas, x, y, BLUE)
+        for x, y in _teac_locations[i]: _dot(canvas, x, y, BLUE)
         for x, y in teac_locations[i]: _dot(rgb, x, y, BLUE)
         for x, y in pred_locations[i]: _dot(rgb, x, y, RED)
 
@@ -198,8 +198,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
         _pred_location = net(rgb_image_left, rgb_image_right, speed, command, traffic)
         pred_location = (_pred_location + 1) * coord_converter._img_size/2
         teac_location = coord_converter(location)
-        loss = np.array([0])
-        # loss = criterion(_pred_location, teac_location)
+        loss = criterion(_pred_location, teac_location)
         loss_mean = loss.mean()
 
         if is_train and not is_first_epoch:
@@ -207,7 +206,12 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
             loss_mean.backward()
             optim.step()
 
-
+        pixel_y, pixel_x = location[:,1]*5, location[:,0]*5
+        pixel_x -= (320-192)//2
+        pixel_y = 192 - (320 - pixel_y) + 70
+        location[:, 1] = pixel_y
+        location[:, 0] = pixel_x        
+        print(location)
         images = _preprocess_image(_log_visuals(rgb_image_right, birdview, speed, traffic, command, loss,
                 pred_location, teac_location, location))
 

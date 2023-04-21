@@ -284,7 +284,7 @@ def get_image(
 
     def make_dataset(dir_name, is_train):
         _dataset_dir = str(Path(dataset_dir) / dir_name)
-        _samples = 1000 if is_train else 10
+        _samples = 10 if is_train else 10
         _num_workers = num_workers if is_train else 0
         _batch_aug = batch_aug if is_train else 1
         _augment = augment if is_train else None
