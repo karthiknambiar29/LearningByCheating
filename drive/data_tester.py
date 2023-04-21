@@ -195,8 +195,8 @@ with env.begin() as txn:
         # print(_teac_location)
         for teac_loc in _teac_location[0]:
             pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0]*5+320//2+1600, 192+teac_loc[1], 3, 3))
-        for teac_loc in teac_location[0]:
-            pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0], teac_loc[1], 3, 3))
+        # for teac_loc in teac_location[0]:
+        #     pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0], teac_loc[1], 3, 3))
         # print(_teac_location, teac_location)
         # print(coord_converter)
         # DISPLAY RENDERING
@@ -230,10 +230,18 @@ with env.begin() as txn:
                 x, y, z, ori_x, ori_y = f_measurement[:5]
                 xx, yy = world_to_pixel(x, y, ox, oy, ori_ox, ori_oy, offset=(0, 0))/PIXELS_PER_METER
                 thres_x, thres_y = xx, yy
-                # if abs(xx) < 6:
-                #     gt_loc.append([-6, 0])
+                # if abs(xx) < 3.5:
+                #     if abs(yy) > 2.0:
+                #         gt_loc.append([-3.5, 2.0])
+                #     else:
+                #         gt_loc.append([-3.5, 0.0])
+                # elif abs(xx) > 3.5:
+                #     if abs(yy) > 2.0:
+                #         gt_loc.append([xx, 2.0])
+                #     else:
+                #         gt_loc.append([xx, yy])
                 # else:
-                gt_loc.append([xx, yy])
+                gt_loc.append([xx-3.5, yy])
                 dt +=5
             # print('gt', np.array(gt_loc)*5)
             for loc in gt_loc:
@@ -267,9 +275,11 @@ with env.begin() as txn:
                 point_left /= point_left[-1]
                 point_right = np.matmul(np.matmul(A, ROTATION_MATRIX), np.concatenate([np.matmul(EXTRINSIC_ROTATION_RIGHT,point), [1]]))
                 point_right /= point_right[-1]
+                # point_left[0] = np.clip(point_left[0], 0, 770)
+                # point_left[1] = np.clip(point_left[1], 0, 570)
                 #print('point_left', point_left)
-                # if 0 < point_left[0] and point_left[0] < 800 and 0 < point_left[1] and  point_left[1] < 600:
-                #     pygame.draw.rect(display, BLUE, pygame.Rect(point_left[0], point_left[1], 3, 3))
+                if 0 < point_left[0] and point_left[0] < 800 and 0 < point_left[1] and  point_left[1] < 600:
+                    pygame.draw.rect(display, BLUE, pygame.Rect(point_left[0], point_left[1], 3, 3))
                 #else: 
                     #print('XX')
 
