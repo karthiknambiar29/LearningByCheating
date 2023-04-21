@@ -195,15 +195,16 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
         command = one_hot(command).to(config['device'])
         speed = speed.to(config['device'])
         traffic = traffic.to(config['device'])
+        location = location.to(config['device'])
         print(location)
-        with torch.no_grad():
-            _teac_location = teacher_net(birdview, speed, command, traffic)
+        # with torch.no_grad():
+        #     _teac_location = teacher_net(birdview, speed, command, traffic)
         
         _pred_location = net(rgb_image_left, rgb_image_right, speed, command, traffic)
         pred_location = (_pred_location + 1) * coord_converter._img_size/2
-        teac_location = coord_converter(_teac_location)
-        
-        loss = criterion(_pred_location, teac_location)
+        # teac_location = coord_converter(_teac_location)
+        loss = np.array([0])
+        # loss = criterion(_pred_location, teac_location)
         loss_mean = loss.mean()
 
         if is_train and not is_first_epoch:

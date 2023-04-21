@@ -180,13 +180,14 @@ class ImageDataset(Dataset):
             
             f_measurement = np.frombuffer(lmdb_txn.get(("measurements_%04d"%index).encode()), np.float32)
             x, y, z, ori_x, ori_y = f_measurement[:5]
-        
-            pixel_y, pixel_x = world_to_pixel(x,y,ox,oy,ori_ox,ori_oy,size=self.img_size)
-            pixel_x = pixel_x - (self.img_size-self.crop_size)//2
-            pixel_y = self.crop_size - (self.img_size-pixel_y)+70
+            pixel_y, pixel_x = world_to_pixel(x,y,ox,oy,ori_ox,ori_oy,size=self.img_size)/PIXELS_PER_METER
+
+            # pixel_y, pixel_x = world_to_pixel(x,y,ox,oy,ori_ox,ori_oy,size=self.img_size)
+            # pixel_x = pixel_x - (self.img_size-self.crop_size)//2
+            # pixel_y = self.crop_size - (self.img_size-pixel_y)+70
             
-            pixel_x -= dx
-            pixel_y -= dy
+            # pixel_x -= dx
+            # pixel_y -= dy
             
             # Coordinate transform
             
