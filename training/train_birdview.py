@@ -194,7 +194,7 @@ def train(config):
         if epoch in SAVE_EPOCHS:
             torch.save(
                     net.state_dict(),
-                    str(Path(config['log_dir']) / ('birdview_new') / ('model-%d.th' % epoch)))
+                    str(Path(config['log_dir']) / ('birdview_new_wrap') / ('model-%d.th' % epoch)))
 
 
 
