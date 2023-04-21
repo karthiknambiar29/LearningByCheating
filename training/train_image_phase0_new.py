@@ -88,12 +88,12 @@ class CoordConverter():
     
     def __call__(self, map_locations):
         teacher_locations = map_locations.detach().cpu().numpy()
-        teacher_locations = (teacher_locations + 1) * CROP_SIZE / 2
+        # teacher_locations = (teacher_locations + 1) * CROP_SIZE / 2
         N = teacher_locations.shape[0]
-        teacher_locations[:,:,1] = CROP_SIZE - teacher_locations[:,:,1]
-        teacher_locations[:,:,0] -= CROP_SIZE/2
-        teacher_locations = teacher_locations / PIXELS_PER_METER
-        teacher_locations[:,:,1] += self._fixed_offset
+        # teacher_locations[:,:,1] = CROP_SIZE - teacher_locations[:,:,1]
+        # teacher_locations[:,:,0] -= CROP_SIZE/2
+        # teacher_locations = teacher_locations / PIXELS_PER_METER
+        # teacher_locations[:,:,1] += self._fixed_offset
         teacher_locations = self._project_image_xy(np.reshape(teacher_locations, (N*N_STEP, 2)))
         teacher_locations = np.reshape(teacher_locations, (N,N_STEP,2))
         teacher_locations = torch.FloatTensor(teacher_locations)
@@ -194,14 +194,10 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
         command = one_hot(command).to(config['device'])
         speed = speed.to(config['device'])
         traffic = traffic.to(config['device'])
-        location = location.to(config['device'])
-        print(location)
-        # with torch.no_grad():
-        #     _teac_location = teacher_net(birdview, speed, command, traffic)
-        
+        location = location.to(config['device'])        
         _pred_location = net(rgb_image_left, rgb_image_right, speed, command, traffic)
         pred_location = (_pred_location + 1) * coord_converter._img_size/2
-        # teac_location = coord_converter(_teac_location)
+        teac_location = coord_converter(location)
         loss = np.array([0])
         # loss = criterion(_pred_location, teac_location)
         loss_mean = loss.mean()
@@ -213,7 +209,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
 
 
         images = _preprocess_image(_log_visuals(rgb_image_right, birdview, speed, traffic, command, loss,
-                pred_location, teac_location, _teac_location))
+                pred_location, teac_location, location))
 
         images_list.append(images)
 
