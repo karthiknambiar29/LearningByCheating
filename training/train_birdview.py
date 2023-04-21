@@ -143,7 +143,7 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
         speed = speed.to(config['device'])
         location = location.float().to(config['device'])
         traffic = traffic.to(config['device'])
-
+        print(command)
         pred_location = net(birdview, speed, command, traffic)
         loss = criterion(pred_location, location)
         loss_mean = loss.mean()
