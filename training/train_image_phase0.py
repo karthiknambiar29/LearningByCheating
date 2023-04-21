@@ -64,7 +64,7 @@ class CoordConverter():
         self._world_y = world_y
         self._fixed_offset = fixed_offset
         
-        self._tran = np.array([0.0,0.88,2.2])
+        self._tran = np.array([0.,0.,0.0])
         self._rot  = np.array([0.,0.,0.])
         f = self._w /(2 * np.tan(self._fov * np.pi / 360))
         self._A = np.array([
@@ -77,7 +77,7 @@ class CoordConverter():
         N = len(xy)
         xyz = np.zeros((N,3))
         xyz[:,0] = xy[:,0]
-        # xyz[:,1] = 0.88
+        xyz[:,1] = 0.88
         xyz[:,2] = xy[:,1]
     
         image_xy, _ = cv2.projectPoints(xyz, self._tran, self._rot, self._A, None)
@@ -97,7 +97,7 @@ class CoordConverter():
         teacher_locations = self._project_image_xy(np.reshape(teacher_locations, (N*N_STEP, 2)))
         teacher_locations = np.reshape(teacher_locations, (N,N_STEP,2))
         teacher_locations = torch.FloatTensor(teacher_locations)
-    
+        print(teacher_locations.shape)
         return teacher_locations
 
 class LocationLoss(torch.nn.Module):
@@ -162,8 +162,8 @@ def _log_visuals(rgb_image_left, birdview, speed, traffic, command, loss, pred_l
 
         _write('Command: %s' % _command, 1, 0)
         _write('Loss: %.2f' % loss[i].item(), 2, 0)
-        _write('Speed: %.2f' % speed, 3, 0)
-        _write('Traffic: %.2f' % traffic, 4, 0)
+        _write('Speed: %.2f' % speed[0], 3, 0)
+        _write('Traffic: %.2f' % traffic[0], 4, 0)
         
         
         images.append((loss[i].item(), _stick_together(rgb, canvas)))
@@ -239,6 +239,7 @@ def train(config):
     teacher_net.eval()
     checkpoint = -1
     coord_converter = CoordConverter(**config['camera_args'])
+
     if config['resume']:
         log_dir = Path(config['log_dir']+'/image_new')
         checkpoints = list(log_dir.glob('model-*.th'))
@@ -264,7 +265,7 @@ def train(config):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir', default='/home/moonlab/Documents/karthik/LearningByCheating/training')
+    parser.add_argument('--log_dir', default='/workspace/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=2)
 
@@ -272,13 +273,13 @@ if __name__ == '__main__':
     parser.add_argument('--pretrained', action='store_true')
     
     # Teacher.
-    parser.add_argument('--teacher_path', required=True)
+    parser.add_argument('--teacher_path', default='/workspace/LearningByCheating/training/birdview_new/model-861.th')
     
     parser.add_argument('--fixed_offset', type=float, default=3.5)
 
     # Dataset.
-    parser.add_argument('--dataset_dir', default='/media/storage/karthik/lbc/dd')
-    parser.add_argument('--batch_size', type=int, default=96)
+    parser.add_argument('--dataset_dir', default='/workspace/dataset')
+    parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default='medium')
     parser.add_argument('--resume', action='store_true')
     # Optimizer.
