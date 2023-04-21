@@ -17,7 +17,7 @@ class Cautious(object):
 
 class Normal(object):
     """Class for Normal agent."""
-    max_speed = 50
+    max_speed = 25
     speed_lim_dist = 3
     speed_decrease = 10
     safety_time = 3

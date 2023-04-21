@@ -7,8 +7,7 @@ import logging
 import math
 import os
 from threading import local
-from tkinter import Image
-import numpy.random as random
+from numpy import random
 import re
 import sys
 import weakref

@@ -200,12 +200,12 @@ def train(config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir',  default='/home/moonlab/Documents/karthik/LearningByCheating/training')
+    parser.add_argument('--log_dir',  default='/workspace/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=1000)
 
     # Dataset.
-    parser.add_argument('--dataset_dir', default='/media/storage/karthik/lbc/dd')
+    parser.add_argument('--dataset_dir', default='/workspace/dataset/')
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--x_jitter', type=int, default=5)
     parser.add_argument('--y_jitter', type=int, default=0)
