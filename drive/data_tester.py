@@ -20,18 +20,24 @@ except IndexError as e:
     pass
 from models.birdview import BirdViewPolicyModelSS
 from utils.train_utils import one_hot
+from torchvision import transforms
+birdview_transform = transforms.ToTensor()
 BLUE = Color('blue')
+RED = Color('red')
 PIXELS_PER_METER = 5
-N_STEPS=5
+N_STEP=5
 CROP_SIZE = 192
 MAP_SIZE=320
 config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
         'teacher_args' : {
-                'model_path': '/workspace/LearningByCheating/training/birdview_new/model-861.th',
+                'model_path': '/home/moonlab/Documents/karthik/lbc/model-869.th',
                 }
             }
+teacher_net = BirdViewPolicyModelSS(backbone='resnet18').to(config['device'])
+teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
+teacher_net.eval()
 class CoordConverter():
-    def __init__(self, w=800, h=600, fov=90, world_y=0.88, fixed_offset=3.5, device='cuda'):
+    def __init__(self, w=800, h=600, fov=90, world_y=0.88, fixed_offset=0.0, device='cuda'):
         self._w = w
         self._h = h
         self._img_size = torch.FloatTensor([w,h]).to(device)
@@ -39,7 +45,7 @@ class CoordConverter():
         self._world_y = world_y
         self._fixed_offset = fixed_offset
         
-        self._tran = np.array([0.,0.,0.0])
+        self._tran = np.array([0.,0.,0.])
         self._rot  = np.array([0.,0.,0.])
         f = self._w /(2 * np.tan(self._fov * np.pi / 360))
         self._A = np.array([
@@ -55,11 +61,26 @@ class CoordConverter():
         xyz[:,1] = 0.88
         xyz[:,2] = xy[:,1]
     
+        ROTATION_MATRIX = np.array([
+                [1, 0, 0, 0],
+                [0, 1, 0, 0],
+                [0, 0, 1, 0],
+            ])
+        
         image_xy, _ = cv2.projectPoints(xyz, self._tran, self._rot, self._A, None)
         image_xy[...,0] = np.clip(image_xy[...,0], 0, self._w)
         image_xy[...,1] = np.clip(image_xy[...,1], 0, self._h)
-    
-        return image_xy[:,0]
+
+        XYZ = np.zeros((xyz.shape[0], 4))
+        XYZ[:, 0:-1] = xyz[:, :]
+        XYZ[:, 2] +=2.2
+        XYZ[:, 0] -= 0.15
+        XYZ[:, -1] = np.ones_like(XYZ[:, -1])
+        uv = np.matmul(np.matmul(self._A, ROTATION_MATRIX), XYZ.T)
+        uv /= uv[-1]
+        uv = uv.T
+        print(uv, uv[:, 0:-1])
+        return uv[:, 0:-1], #image_xy[:,0]
     
     def __call__(self, map_locations):
         teacher_locations = map_locations.detach().cpu().numpy()
@@ -68,11 +89,11 @@ class CoordConverter():
         teacher_locations[:,:,1] = CROP_SIZE - teacher_locations[:,:,1]
         teacher_locations[:,:,0] -= CROP_SIZE/2
         teacher_locations = teacher_locations / PIXELS_PER_METER
+        print('teacher_locations', teacher_locations)
         teacher_locations[:,:,1] += self._fixed_offset
         teacher_locations = self._project_image_xy(np.reshape(teacher_locations, (N*N_STEP, 2)))
         teacher_locations = np.reshape(teacher_locations, (N,N_STEP,2))
         teacher_locations = torch.FloatTensor(teacher_locations)
-        print(teacher_locations.shape)
         return teacher_locations
 
 def world_to_pixel (x, y, ox, oy, ori_ox, ori_oy, offset=(10+320+176, 192//2), size=320, angle_jitter=15):
@@ -123,14 +144,16 @@ with env.begin() as txn:
         display.blit(pygame.surfarray.make_surface(rgb_left.swapaxes(0, 1)), (0, 0))
         display.blit(pygame.surfarray.make_surface(rgb_right.swapaxes(0, 1)), (800, 0))
         display.blit(pygame.surfarray.make_surface(np.zeros((320, 280))), (1600, 320))
+        birdview = crop_birdview(bird_view)
         bird_view = crop_birdview(visualize_birdview(bird_view))
         display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (1600, 0))
         ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic_light  = measurement
         v_offset = 4
         bar_width = 106
         items = list()
-        speed = 'Speed:   % 15.3f km/h' % (3.6 * math.sqrt(vx**2 + vy**2 + vz**2))
-        items.append(str(speed))
+        speed = 3.6 * math.sqrt(vx**2 + vy**2 + vz**2)
+        speed_str = 'Speed:   % 15.3f km/h' % (3.6 * math.sqrt(vx**2 + vy**2 + vz**2))
+        items.append(str(speed_str))
 
         # CONTROL
 
@@ -154,6 +177,26 @@ with env.begin() as txn:
 
         items.append('Traffic Light:   % 12s' % ('RED' if traffic_light == 1.0 else 'GREEN'))
         
+        #birdview
+        birdview = np.reshape(birdview, (192, 192, 5))
+        birdview = birdview_transform(birdview)
+        birdview = birdview[None, :].to(config['device'])
+        command = one_hot(torch.Tensor([cmd])).to(config['device'])
+        speed = torch.Tensor([float(speed)]).to(config['device'])
+        traffic = torch.Tensor([traffic_light]).to(config['device'])
+        
+        with torch.no_grad():
+            _teac_location = teacher_net(birdview, speed, command, traffic)
+        coord_converter = CoordConverter()
+        teac_location = coord_converter(_teac_location)
+        print(teac_location.shape)
+        _teac_location = (_teac_location + 1) * (0.5 * CROP_SIZE)
+        for teac_loc in _teac_location[0]:
+            pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0]+190//2+1600, 192+teac_loc[1]-70, 3, 3))
+        for teac_loc in teac_location[0]:
+            pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0], teac_loc[1], 3, 3))
+        # print(_teac_location, teac_location)
+        # print(coord_converter)
         # DISPLAY RENDERING
         for item in items:
             if isinstance(item, tuple):
@@ -175,7 +218,7 @@ with env.begin() as txn:
             gt_loc = []
             # for dt in range(gap+15, gap*(n_step+1), gap):
             dt = 0
-            while dt <= 25 :
+            while dt < 25 :
                 index = i + dt
                 f_measurement = np.frombuffer(txn.get(("measurements_%04d"%index).encode()), np.float32)
                 x, y, z, ori_x, ori_y = f_measurement[:5]
@@ -210,7 +253,7 @@ with env.begin() as txn:
                                         [0, 0, 1, -1.4],
                                         [1, 0, 0, -2.0]])
             for loc in gt_loc:
-                print(loc)
+                # print(loc)
                 point = np.array([loc[1]-0.15, +0.88, loc[0]+2.2, 1])
                 #print('gt', point)
                 point_left = np.matmul(np.matmul(A, ROTATION_MATRIX), point)
