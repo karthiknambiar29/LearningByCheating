@@ -2,15 +2,79 @@ import numpy as np
 import lmdb
 import cv2
 import pygame
+import torch
 import math
 import os
+import sys
+import glob
 from data_util import YamlConfig, load_config,visualize_birdview, get_birdview
 from carla import ColorConverter as cc
 from pygame.locals import Color
+
+try:
+    sys.path.append(glob.glob('../PythonAPI')[0])
+    sys.path.append(glob.glob('../bird_view')[0])
+    sys.path.append(glob.glob('../drive')[0])
+    sys.path.append('../LearningByCheating')
+except IndexError as e:
+    pass
+from models.birdview import BirdViewPolicyModelSS
+from utils.train_utils import one_hot
 BLUE = Color('blue')
 PIXELS_PER_METER = 5
+N_STEPS=5
 CROP_SIZE = 192
 MAP_SIZE=320
+config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+        'teacher_args' : {
+                'model_path': '/workspace/LearningByCheating/training/birdview_new/model-861.th',
+                }
+            }
+class CoordConverter():
+    def __init__(self, w=800, h=600, fov=90, world_y=0.88, fixed_offset=3.5, device='cuda'):
+        self._w = w
+        self._h = h
+        self._img_size = torch.FloatTensor([w,h]).to(device)
+        self._fov = fov
+        self._world_y = world_y
+        self._fixed_offset = fixed_offset
+        
+        self._tran = np.array([0.,0.,0.0])
+        self._rot  = np.array([0.,0.,0.])
+        f = self._w /(2 * np.tan(self._fov * np.pi / 360))
+        self._A = np.array([
+            [f, 0., self._w/2],
+            [0, f, self._h/2],
+            [0., 0., 1.]
+        ])
+     
+    def _project_image_xy(self, xy):
+        N = len(xy)
+        xyz = np.zeros((N,3))
+        xyz[:,0] = xy[:,0]
+        xyz[:,1] = 0.88
+        xyz[:,2] = xy[:,1]
+    
+        image_xy, _ = cv2.projectPoints(xyz, self._tran, self._rot, self._A, None)
+        image_xy[...,0] = np.clip(image_xy[...,0], 0, self._w)
+        image_xy[...,1] = np.clip(image_xy[...,1], 0, self._h)
+    
+        return image_xy[:,0]
+    
+    def __call__(self, map_locations):
+        teacher_locations = map_locations.detach().cpu().numpy()
+        teacher_locations = (teacher_locations + 1) * CROP_SIZE / 2
+        N = teacher_locations.shape[0]
+        teacher_locations[:,:,1] = CROP_SIZE - teacher_locations[:,:,1]
+        teacher_locations[:,:,0] -= CROP_SIZE/2
+        teacher_locations = teacher_locations / PIXELS_PER_METER
+        teacher_locations[:,:,1] += self._fixed_offset
+        teacher_locations = self._project_image_xy(np.reshape(teacher_locations, (N*N_STEP, 2)))
+        teacher_locations = np.reshape(teacher_locations, (N,N_STEP,2))
+        teacher_locations = torch.FloatTensor(teacher_locations)
+        print(teacher_locations.shape)
+        return teacher_locations
+
 def world_to_pixel (x, y, ox, oy, ori_ox, ori_oy, offset=(10+320+176, 192//2), size=320, angle_jitter=15):
         
     pixel_dx, pixel_dy = (x-ox)*PIXELS_PER_METER, (y-oy)*PIXELS_PER_METER
@@ -31,9 +95,9 @@ def crop_birdview(birdview, dx=0, dy=0):
     return birdview
 
 args = YamlConfig.from_nested_dicts(load_config('config/hound_straight.yaml'))
-for i in range(21):
+for i in range(1):
     print('%03d' % i)
-    env = lmdb.open('/home/carla/Desktop/dataset/'+('%03d' % i))
+    env = lmdb.open('/workspace/dataset/train/'+('%03d' % i))
 
     pygame.init()
     pygame.font.init()
@@ -92,7 +156,19 @@ for i in range(21):
             # TRAFFIC LIGHT
 
             items.append('Traffic Light:   % 12s' % ('RED' if traffic_light == 1.0 else 'GREEN'))
-            
+
+            # Birdview model
+            teacher_net = BirdViewPolicyModelSS(backbone='resnet18').to(config['device'])
+            teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
+            teacher_net.eval()
+            birdview = bird_view
+            birdview = birdview.to(config['device'])
+            command = one_hot(command).to(config['device'])
+            speed = speed.to(config['device'])
+            traffic = traffic.to(config['device'])
+            with torch.no_grad():
+                _teac_location = teacher_net(birdview, speed, command, traffic)
+            print(_teach_location)
             # DISPLAY RENDERING
             for item in items:
                 if isinstance(item, tuple):
@@ -157,7 +233,7 @@ for i in range(21):
                                         [0, 0, 1, -1.4],
                                         [1, 0, 0, -2.0]])
             for loc in gt_loc:
-                #print(loc)
+                print(loc)
                 point = np.array([loc[1]-0.15, +0.88, loc[0]+2.2, 1])
                 #print('gt', point)
                 point_left = np.matmul(np.matmul(A, ROTATION_MATRIX), point)

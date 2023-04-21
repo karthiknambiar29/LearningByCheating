@@ -64,7 +64,7 @@ class CoordConverter():
         self._world_y = world_y
         self._fixed_offset = fixed_offset
         
-        self._tran = np.array([0.15,0.88,2.2])
+        self._tran = np.array([0.,0.,0.0])
         self._rot  = np.array([0.,0.,0.])
         f = self._w /(2 * np.tan(self._fov * np.pi / 360))
         self._A = np.array([
@@ -77,7 +77,7 @@ class CoordConverter():
         N = len(xy)
         xyz = np.zeros((N,3))
         xyz[:,0] = xy[:,0]
-        # xyz[:,1] = 0.88
+        xyz[:,1] = 0.88
         xyz[:,2] = xy[:,1]
     
         image_xy, _ = cv2.projectPoints(xyz, self._tran, self._rot, self._A, None)
@@ -97,7 +97,7 @@ class CoordConverter():
         teacher_locations = self._project_image_xy(np.reshape(teacher_locations, (N*N_STEP, 2)))
         teacher_locations = np.reshape(teacher_locations, (N,N_STEP,2))
         teacher_locations = torch.FloatTensor(teacher_locations)
-    
+        print(teacher_locations.shape)
         return teacher_locations
 
 class LocationLoss(torch.nn.Module):
