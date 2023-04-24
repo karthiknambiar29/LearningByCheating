@@ -171,7 +171,7 @@ model_funcs = {
 def get_resnet(model_name='resnet18', pretrained=False, **kwargs):
     block, layers, c_out = model_funcs[model_name]
     model = ResNet(block, layers, **kwargs)
-    print(kwargs.get('input_channel', 3))
+    
     if pretrained and kwargs.get('input_channel', 3) == 3:
         url = model_urls[model_name]
         print ("Loading ResNet weights from : %s" % url)
