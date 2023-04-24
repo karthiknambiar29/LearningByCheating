@@ -1,4 +1,4 @@
-from efficientnet_pytorch import EfficientNet
+from efficientnet_pytorch.model import EfficientNet
 
 model_funcs = {
         'efficientnet-b0': 1280,
