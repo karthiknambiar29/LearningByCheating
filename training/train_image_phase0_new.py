@@ -155,7 +155,7 @@ def _log_visuals(rgb_image_left, birdview, speed, traffic, command, loss, pred_l
 
         _dot(canvas, 0, 0, WHITE)
 
-        for x, y in (_teac_locations[i]*5 + 1) * (0.5 * CROP_SIZE): _dot(canvas, x, y, BLUE)
+        for x, y in _teac_locations[i]*5: _dot(canvas, 192//2+x, 192-y, RED)
         for x, y in teac_locations[i]: _dot(rgb, x, y, BLUE)
         for x, y in pred_locations[i]: _dot(rgb, x, y, RED)
 
@@ -205,7 +205,6 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
             optim.zero_grad()
             loss_mean.backward()
             optim.step()
-
 
         images = _preprocess_image(_log_visuals(rgb_image_right, birdview, speed, traffic, command, loss,
                 pred_location, teac_location, location))
@@ -262,7 +261,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_dir', default='/workspace/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
-    parser.add_argument('--max_epoch', default=2)
+    parser.add_argument('--max_epoch', default=1000)
 
     # Model
     parser.add_argument('--pretrained', action='store_true')
@@ -275,10 +274,11 @@ if __name__ == '__main__':
     # Dataset.
     parser.add_argument('--dataset_dir', default='/workspace/dataset')
     parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default='medium')
+    parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default='None')
     parser.add_argument('--resume', action='store_true')
     # Optimizer.
     parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--cmd-biased', action='store_true', default=False)
 
     parsed = parser.parse_args()
     
@@ -296,6 +296,7 @@ if __name__ == '__main__':
                 'gap': GAP,
                 'augment': parsed.augment,
                 'num_workers': 8,
+                'cmd_biased': parsed.cmd_biased
                 },
             'model_args': {
                 'model': 'image_ss',

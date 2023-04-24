@@ -18,13 +18,13 @@ import augmenter
 PIXEL_OFFSET = 10
 PIXELS_PER_METER = 5
     
-def world_to_pixel(x,y,ox,oy,ori_ox, ori_oy, offset=(-80,160), size=320, angle_jitter=15):
+def world_to_pixel(x,y,ox,oy,ori_ox, ori_oy, offset=(0,0), size=320, angle_jitter=15):
     pixel_dx, pixel_dy = (x-ox)*PIXELS_PER_METER, (y-oy)*PIXELS_PER_METER
     
     pixel_x = pixel_dx*ori_ox+pixel_dy*ori_oy
     pixel_y = -pixel_dx*ori_oy+pixel_dy*ori_ox
     
-    pixel_x = 320-pixel_x
+   # pixel_x = 320-pixel_x
     
     return np.array([pixel_x, pixel_y]) + offset
     
@@ -230,6 +230,37 @@ class ImageDataset(Dataset):
        
         return rgb_images_left, rgb_images_right, bird_view, np.array(locations), cmd, speed, traffic
 
+class BiasedImageDataset(ImageDataset):
+    def __init__(self, dataset_path, left_ratio=0.25, right_ratio=0.25, straight_ratio=0.25, **kwargs):
+        super().__init__(dataset_path, **kwargs)
+        
+        print ("Doing biased: %.2f,%.2f,%.2f"%(left_ratio, right_ratio, straight_ratio))
+        
+        self._choices = [1,2,3,4]
+        self._weights = [left_ratio,right_ratio,straight_ratio,1-left_ratio-right_ratio-straight_ratio]
+        # Separately save data on different cmd
+        self.cmd_map = { i : set([]) for i in range(1,5)}
+        
+        for idx in range(len(self.file_map)):
+            lmdb_txn = self.file_map[idx]
+            index = self.idx_map[idx]
+            
+            measurement = np.frombuffer(lmdb_txn.get(('measurements_%04d'%index).encode()), np.float32)
+            ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic  = measurement
+            speed = np.linalg.norm([vx,vy,vz])
+            
+            if cmd != 4 and speed > 1.0:
+                self.cmd_map[cmd].add(idx)
+            else:
+                self.cmd_map[4].add(idx)
+            
+        for cmd, nums in self.cmd_map.items():
+            print (cmd, len(nums))
+
+    def __getitem__(self, idx):
+        cmd = np.random.choice(self._choices, p=self._weights)
+        [_idx] = random.sample(self.cmd_map[cmd], 1)
+        return super(BiasedImageDataset, self).__getitem__(_idx)
         
 def load_image_data(dataset_path, 
         batch_size=32, 
@@ -278,7 +309,7 @@ def _dataloader(data, batch_size, num_workers):
 def get_image(
         dataset_dir,
         batch_size=32, num_workers=0, shuffle=True, augment=None,
-        n_step=5, gap=5, batch_aug=1):
+        n_step=5, gap=5, batch_aug=1, cmd_biased=False):
 
     # import pdb; pdb.set_trace()
 
@@ -289,7 +320,12 @@ def get_image(
         _batch_aug = batch_aug if is_train else 1
         _augment = augment if is_train else None
 
-        data = ImageDataset(
+        if is_train and cmd_biased:
+            dataset_cls = BiasedImageDataset
+        else:
+            dataset_cls = ImageDataset
+
+        data = dataset_cls(
                 _dataset_dir, gap=gap, n_step=n_step, augment_strategy=_augment, batch_aug=_batch_aug)
         data = Wrap(data, batch_size, _samples)
         data = _dataloader(data, batch_size, _num_workers)
