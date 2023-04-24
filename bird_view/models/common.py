@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 
 from .resnet import get_resnet
+from .efficientnet import get_efficientnet
 
 
 CROP_SIZE = 192
@@ -86,14 +87,20 @@ class ImageNetResnetBase(nn.Module):
     def __init__(self, backbone, input_channel=3, bias_first=True, pretrained=False):
         super().__init__()
         
+        if backbone[:3] == 'res':
+            conv_left, c = get_resnet(
+                    backbone, input_channel=input_channel,
+                    bias_first=bias_first, pretrained=pretrained)
 
-        conv_left, c = get_resnet(
-                backbone, input_channel=input_channel,
-                bias_first=bias_first, pretrained=pretrained)
+            conv_right, c = get_resnet(
+                    backbone, input_channel=input_channel,
+                    bias_first=bias_first, pretrained=pretrained)
+        elif backbone[:3] == 'eff':
+            conv_left, c = get_efficientnet(
+                    backbone, pretrained=pretrained)
 
-        conv_right, c = get_resnet(
-                backbone, input_channel=input_channel,
-                bias_first=bias_first, pretrained=pretrained)
+            conv_right, c = get_efficientnet(
+                    backbone, pretrained=pretrained)
         
         self.conv_left = conv_left
         self.conv_right = conv_right
