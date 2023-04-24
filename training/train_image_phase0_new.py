@@ -181,7 +181,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
         net.eval()
 
     total = 10 if is_first_epoch else len(data)
-    iterator_tqdm = tqdm.tqdm(data, desc=desc, total=total)
+    iterator_tqdm = tqdm.tqdm(data, desc=desc, total=total, leave=False)
     iterator = enumerate(iterator_tqdm)
 
     total_loss = []
@@ -241,10 +241,10 @@ def train(config):
         checkpoint = str(checkpoints[-1])
         print ("load %s"%checkpoint)
         net.load_state_dict(torch.load(checkpoint))
+        checkpoint = int(checkpoint.split('-')[-1].split('.')[0])
 
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
-
-    for epoch in tqdm.tqdm(range(int(checkpoint.split('-')[-1].split('.')[0])+1, config['max_epoch']+1), desc='Epoch'):
+    for epoch in tqdm.tqdm(range((checkpoint)+1, config['max_epoch']+1), desc='Epoch'):
         train_loss, train_images = train_or_eval(coord_converter, criterion, net, teacher_net, data_train, optim, True, config, epoch == 0)
         val_loss, val_images = train_or_eval(coord_converter, criterion, net, teacher_net, data_val, None, False, config, epoch == 0)
         writer.add_scalar('Loss/train', train_loss, epoch)
@@ -254,7 +254,7 @@ def train(config):
         if epoch in SAVE_EPOCHS:
             torch.save(
                     net.state_dict(),
-                    str(Path(config['log_dir']) / ('image_new') / ('model-%d.th' % epoch)))
+                    str(Path(config['log_dir']) / (config['folder_name']) / ('model-%d.th' % epoch)))
 
     
 if __name__ == '__main__':
@@ -262,10 +262,11 @@ if __name__ == '__main__':
     parser.add_argument('--log_dir', default='/workspace/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=1000)
+    parser.add_argument('--folder_name', default='image_new')
 
     # Model
     parser.add_argument('--pretrained', action='store_true')
-    
+    parser.add_argument('--backbone', default='resnet34')
     # Teacher.
     parser.add_argument('--teacher_path', default='/workspace/LearningByCheating/training/birdview_new/model-861.th')
     
@@ -301,7 +302,7 @@ if __name__ == '__main__':
             'model_args': {
                 'model': 'image_ss',
                 'imagenet_pretrained': parsed.pretrained,
-                'backbone': BACKBONE,
+                'backbone': parsed.backbone,
                 },
             'camera_args': {
                 'w': 800,
