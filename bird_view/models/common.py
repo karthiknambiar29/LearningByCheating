@@ -96,7 +96,7 @@ class ImageNetResnetBase(nn.Module):
                 bias_first=bias_first, pretrained=pretrained)
         
         self.conv_left = conv_left
-        self.conv_right = conv_left
+        self.conv_right = conv_right
         self.c = c
 
         self.backbone = backbone
