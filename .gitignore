@@ -19,7 +19,7 @@ __pycache__/
 training/birdview/
 training/birdview_new/
 *.py[cod]
-
+test.ipynb
 # C extensions
 *.so
 
