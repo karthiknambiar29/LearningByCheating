@@ -15,7 +15,7 @@ def get_efficientnet(model_name='efficientnet-b1', pretrained=False):
     return model, c_out
 
 # from efficientnet_pytorch import EfficientNet
-# model_name = 'efficientnet-b3'
+# model_name = 'efficientnet-b7'
 # model = EfficientNet.from_pretrained(model_name)
 # model_state_dict = model.state_dict()
 # model_state_dict.pop('_fc.weight')

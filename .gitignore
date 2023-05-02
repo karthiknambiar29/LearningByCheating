@@ -19,7 +19,7 @@ __pycache__/
 training/birdview/
 training/birdview_new/
 *.py[cod]
-
+bird_view/models/efficientnet_pretrained/
 # C extensions
 *.so
 

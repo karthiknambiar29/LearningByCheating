@@ -22,7 +22,7 @@ COMMANDS = 4
 DT = 0.1
 CROP_SIZE = 192
 PIXELS_PER_METER = 5
-
+  
         
 class ImagePolicyModelSS(common.ImageNetResnetBase):
     def __init__(self, backbone, warp=False, pretrained=False, all_branch=False, **kwargs):
@@ -31,7 +31,9 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         self.c = {
                 'resnet18': 512,
                 'resnet34': 512,
-                'resnet50': 2048
+                'resnet50': 2048,
+                'efficientnet-b0': 1280,
+                'efficientnet-b7': 2560
                 }[backbone]
         self.warp = warp
         self.rgb_transform = common.NormalizeV2(
