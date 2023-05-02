@@ -19,6 +19,7 @@ try:
 except IndexError as e:
     pass
 from models.birdview import BirdViewPolicyModelSS
+# from models.image import ImagePolicyModelSS
 from utils.train_utils import one_hot
 from torchvision import transforms
 birdview_transform = transforms.ToTensor()
@@ -29,10 +30,16 @@ N_STEP=5
 CROP_SIZE = 320
 MAP_SIZE=320
 config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
-        'teacher_args' : {
-                'model_path': '/home/moonlab/Documents/karthik/lbc/model-869.th',
+            'teacher_args' : {
+                'model_path': '/home/moonlab/Documents/karthik/LearningByCheating/ckpts/priveleged/model-128.th',
+                },
+            'image_args' : {
+                'model_path': '/home/moonlab/Documents/karthik/LearningByCheating/model-249.th',
                 }
             }
+# image_net = ImagePolicyModelSS(backbone='resnet34').to(config['device'])
+# image_net.load_state_dict(torch.load(config['image_args']['model_path']))
+# image_net.eval()
 teacher_net = BirdViewPolicyModelSS(backbone='resnet18').to(config['device'])
 teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
 teacher_net.eval()
@@ -140,7 +147,7 @@ with env.begin() as txn:
         rgb_right = np.fromstring(txn.get(('rgb_right_%04d'%i).encode()), np.uint8).reshape(600,800,3)
         bird_view = np.fromstring(txn.get(('birdview_%04d'%i).encode()), np.uint8).reshape(320,320,8)
         # removing traffic channels
-        bird_view = np.delete(bird_view, [3, 4, 5], axis=-1)
+        bird_view = np.delete(bird_view, [2], axis=-1)
         measurement = np.frombuffer(txn.get(('measurements_%04d'%i).encode()), np.float32)
         display.blit(pygame.surfarray.make_surface(rgb_left.swapaxes(0, 1)), (0, 0))
         display.blit(pygame.surfarray.make_surface(rgb_right.swapaxes(0, 1)), (800, 0))
@@ -182,21 +189,31 @@ with env.begin() as txn:
         # birdview = np.reshape(birdview, (192, 192, 5))
         birdview = birdview_transform(birdview)
         birdview = birdview[None, :].to(config['device'])
-        command = one_hot(torch.Tensor([0.0])).to(config['device'])
+        rgb_left = birdview_transform(rgb_left)
+        rgb_right = birdview_transform(rgb_right)
+        rgb_left = rgb_left[None, :].to(config['device'])
+        rgb_right = rgb_right[None, :].to(config['device'])
+        command = one_hot(torch.Tensor([cmd])).to(config['device'])
         speed = torch.Tensor([float(speed)]).to(config['device'])
         traffic = torch.Tensor([traffic_light]).to(config['device'])
         print(command)
         with torch.no_grad():
+            # _image_location = image_net(rgb_left, rgb_right, speed, command, traffic)
             _teac_location = teacher_net(birdview, speed, command, traffic)
+        # _image_location = _image_location.squeeze().detach().cpu().numpy()
+        # _image_location = (_image_location +1) * np.array([800, 600])/2
         coord_converter = CoordConverter()
-        teac_location = coord_converter(_teac_location)
+        teac_location = coord_converter(_teac_location)* np.array([800, 600])/2
         # print(teac_location.shape)
         _teac_location = (_teac_location + 1) * (0.5 * 192)/PIXELS_PER_METER
         # print(_teac_location)
+        # print(_image_location)
         for teac_loc in _teac_location[0]:
             pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0]*5+320//2+1600, 192+teac_loc[1], 3, 3))
-        # for teac_loc in teac_location[0]:
+        # for teac_loc in _image_location:
         #     pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0], teac_loc[1], 3, 3))
+        for teac_loc in teac_location[0]:
+            pygame.draw.rect(display, RED, pygame.Rect(teac_loc[1], teac_loc[0], 3, 3))
         # print(_teac_location, teac_location)
         # print(coord_converter)
         # DISPLAY RENDERING

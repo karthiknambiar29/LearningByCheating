@@ -14,10 +14,10 @@ def get_efficientnet(model_name='efficientnet-b1', pretrained=False):
     model = EfficientNet.from_name(model_name)
     return model, c_out
 
-from efficientnet_pytorch import EfficientNet
-model_name = 'efficientnet-b7'
-model = EfficientNet.from_pretrained(model_name)
-model_state_dict = model.state_dict()
-model_state_dict.pop('_fc.weight')
-model_state_dict.pop('_fc.bias')
-torch.save(model_state_dict, '/home/moonlab/Documents/karthik/LearningByCheating/bird_view/models/efficientnet_pytorch/{}.th'.format(model_name))
+# from efficientnet_pytorch import EfficientNet
+# model_name = 'efficientnet-b3'
+# model = EfficientNet.from_pretrained(model_name)
+# model_state_dict = model.state_dict()
+# model_state_dict.pop('_fc.weight')
+# model_state_dict.pop('_fc.bias')
+# torch.save(model_state_dict, '/home/moonlab/Documents/karthik/LearningByCheating/bird_view/models/efficientnet_pytorch/{}.th'.format(model_name))

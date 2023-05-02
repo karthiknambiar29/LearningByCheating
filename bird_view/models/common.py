@@ -68,7 +68,7 @@ def make_arc(points, c, r):
 
 
 class BirdViewResnetBase(nn.Module):
-    def __init__(self, backbone, input_channel=3, bias_first=True, pretrained=False):
+    def __init__(self, backbone, input_channel=5, bias_first=True, pretrained=False):
         super().__init__()
         
 
@@ -95,6 +95,7 @@ class ImageNetResnetBase(nn.Module):
             conv_right, c = get_resnet(
                     backbone, input_channel=input_channel,
                     bias_first=bias_first, pretrained=pretrained)
+            print('cc')
         elif backbone[:3] == 'eff':
             conv_left, c = get_efficientnet(
                     backbone, pretrained=pretrained)
