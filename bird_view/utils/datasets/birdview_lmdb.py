@@ -92,7 +92,7 @@ class BirdViewDataset(Dataset):
         lmdb_txn = self.file_map[idx]
         index = self.idx_map[idx]
 
-        bird_view = np.frombuffer(lmdb_txn.get(('birdview_%04d'%index).encode()), np.uint8).reshape(320,320,7)
+        bird_view = np.frombuffer(lmdb_txn.get(('birdview_%04d'%index).encode()), np.uint8).reshape(320,320,8) # (320,320,7)
         measurement = np.frombuffer(lmdb_txn.get(('measurements_%04d'%index).encode()), np.float32)
         rgb_image = None
 
