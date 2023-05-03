@@ -267,7 +267,7 @@ def train(config):
         print("Loaded from Imagenet Pretrained")
     
 
-    teacher_net = BirdViewPolicyModelSS(config['teacher_args']['backbone']).to(config['device'])
+    teacher_net = BirdViewPolicyModelSS(config['teacher_args']['backbone'], all_branch=True).to(config['device'])
     teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
     teacher_net.eval()
     
@@ -303,10 +303,10 @@ if __name__ == '__main__':
     # Model
     parser.add_argument('--imagenet_pretrained', action='store_true')
     parser.add_argument('--pretrained', action='store_true')
-    parser.add_argument('--ckpt', required=True)
+    parser.add_argument('--ckpt', default="/home/moonlab/Documents/karthik/LearningByCheating/ckpts/image_new/model.th")
     
     # Teacher.
-    parser.add_argument('--teacher_path', required=True)
+    parser.add_argument('--teacher_path', default="/home/moonlab/Documents/karthik/LearningByCheating/ckpts/priveleged/model-128.th")
     parser.add_argument('--teacher_backbone', default='resnet18')
     
     parser.add_argument('--fixed_offset', type=float, default=4.)
@@ -315,7 +315,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_aug', type=int, default=1)
     parser.add_argument('--dataset_dir', default='/home/moonlab/Documents/karthik/dataset_384_160')
     parser.add_argument('--batch_size', type=int, default=24)
-    parser.add_argument('--speed_noise', type=float, default=0.0)
+    parser.add_argument('--speed_noise', type=float, default=0.1)
     parser.add_argument('--resume', action='store_true')
     parser.add_argument('--augment', choices=['medium', 'medium_harder', 'super_hard', 'None', 'custom'], default='super_hard')
 
