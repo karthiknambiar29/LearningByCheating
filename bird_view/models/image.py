@@ -19,7 +19,7 @@ CROP_SIZE = 192
 PIXELS_PER_METER = 5
 
         
-class ImagePolicyModelSS(common.ResnetBase):
+class ImagePolicyModelSS(common.ImageNetResnetBase):
     def __init__(self, backbone, warp=False, pretrained=False, all_branch=False, **kwargs):
         super().__init__(backbone, pretrained=pretrained, input_channel=3, bias_first=False)
         
@@ -35,7 +35,7 @@ class ImagePolicyModelSS(common.ResnetBase):
         )
         
         self.deconv = nn.Sequential(
-            nn.BatchNorm2d(self.c + 128),
+            nn.BatchNorm2d(2*self.c + 2*128),
             nn.ConvTranspose2d(self.c + 128,256,3,2,1,1),
             nn.ReLU(True),
             nn.BatchNorm2d(256),
@@ -61,22 +61,26 @@ class ImagePolicyModelSS(common.ResnetBase):
         
         self.all_branch = all_branch
 
-    def forward(self, image, velocity, command):
+    def forward(self, image_left, image_right, velocity, command):
         if self.warp:
-            warped_image = tgm.warp_perspective(image, self.M, dsize=(192, 192))
-            resized_image = resize_images(image)
-            image = torch.cat([warped_image, resized_image], 1)
-        
-        
-        image = self.rgb_transform(image)
+            warped_image = tgm.warp_perspective(image_left, self.M, dsize=(192, 192))
+            resized_image = resize_images(image_left)
+            image_left = torch.cat([warped_image, resized_image], 1)
 
-        h = self.conv(image)
-        b, c, kh, kw = h.size()
+            warped_image = tgm.warp_perspective(image_right, self.M, dsize=(192, 192))
+            resized_image = resize_images(image_right)
+            image_right = torch.cat([warped_image, resized_image], 1)
+        image_left = self.rgb_transform(image_left)
+        image_right = self.rgb_transform(image_right)
+
+        h_l= self.conv_left(image_left)
+        h_r= self.conv_right(image_right)
+        b, c, kh, kw = h_l.size()
         
         # Late fusion for velocity
         velocity = velocity[...,None,None,None].repeat((1,128,kh,kw))
         
-        h = torch.cat((h, velocity), dim=1)
+        h = torch.cat((h_l, velocity, h_r, velocity), dim=1)
         h = self.deconv(h)
         
         location_preds = [location_pred(h) for location_pred in self.location_pred]

@@ -65,7 +65,24 @@ def make_arc(points, c, r):
 
     return np.stack([x1, x2], 1)
 
+class ImageNetResnetBase(nn.Module):
+    def __init__(self,  backbone, input_channel=3, bias_first=True, pretrained=False):
+        super().__init__()
+        conv_left, c = get_resnet(
+                    backbone, input_channel=input_channel,
+                    bias_first=bias_first, pretrained=pretrained)
 
+        conv_right, c = get_resnet(
+                backbone, input_channel=input_channel,
+                bias_first=bias_first, pretrained=pretrained)
+        
+        self.conv_left = conv_left
+        self.conv_right = conv_right
+        self.c = c
+
+        self.backbone = backbone
+        self.input_channel = input_channel
+        self.bias_first = bias_first
 class ResnetBase(nn.Module):
     def __init__(self, backbone, input_channel=3, bias_first=True, pretrained=False):
         super().__init__()
