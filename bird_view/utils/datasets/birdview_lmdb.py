@@ -96,7 +96,7 @@ class BirdViewDataset(Dataset):
         measurement = np.frombuffer(lmdb_txn.get(('measurements_%04d'%index).encode()), np.float32)
         rgb_image = None
 
-        ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear  = measurement
+        ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic  = measurement # included traffic light information
         speed = np.linalg.norm([vx,vy,vz])
 
         oangle = np.arctan2(ori_oy, ori_ox)
