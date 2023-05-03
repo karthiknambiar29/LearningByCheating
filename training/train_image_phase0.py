@@ -52,7 +52,7 @@ def _preprocess_image(x):
     # x = torch.nn.functional.interpolate(x, 128, mode='nearest')
     x = tv_utils.make_grid(x, padding=2, normalize=True, nrow=4)
     x = x.cpu().numpy()
-    return 
+    return x
 
 class CoordConverter():
     def __init__(self, w=384, h=160, fov=90, world_y=0.88, fixed_offset=3.5, device='cuda'):
@@ -164,7 +164,6 @@ def _log_visuals(rgb_image, birdview, speed, command, loss, pred_locations, teac
         
         
         images.append((loss[i].item(), _stick_together(rgb, canvas)))
-
     return [x[1] for x in sorted(images, reverse=True, key=lambda x: x[0])]
 
 
@@ -212,6 +211,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
                 pred_location, teac_location, _teac_location))
 
         images_list.append(images)
+
 
         if is_first_epoch and i == 10:
             iterator_tqdm.close()
@@ -268,7 +268,7 @@ def train(config):
         if epoch in SAVE_EPOCHS:
             torch.save(
                     net.state_dict(),
-                    str(Path(config['log_dir']) / ('model-%d.th' % epoch)))
+                    str(Path(config['log_dir']) / (config['folder_name']) / ('model-%d.th' % epoch)))
 
     
 if __name__ == '__main__':
@@ -307,6 +307,7 @@ if __name__ == '__main__':
             'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
             'optimizer_args': {'lr': parsed.lr},
             'pretrained': parsed.pretrained,
+            'folder_name': parsed.folder_name, 
             'data_args': {
                 'dataset_dir': parsed.dataset_dir,
                 'batch_size': parsed.batch_size,

@@ -14,26 +14,46 @@ import sys
 try:
     sys.path.append(glob.glob('../PythonAPI')[0])
     sys.path.append(glob.glob('../bird_view')[0])
+    sys.path.append(glob.glob('../drive')[0])
+    sys.path.append('../LearningByCheating')
 except IndexError as e:
     pass
-
-import utils.bz_utils as bzu
+import torchvision.utils as tv_utils
 
 from models.birdview import BirdViewPolicyModelSS
 from models.image import ImagePolicyModelSS
-from train_util import one_hot
+from utils.train_utils import one_hot
 from utils.datasets.image_lmdb import get_image as load_data
+from torch.utils.tensorboard import SummaryWriter
 
 BACKBONE = 'resnet34'
 GAP = 5
 N_STEP = 5
 PIXELS_PER_METER = 5
 CROP_SIZE = 192
-SAVE_EPOCHS = [1, 2, 4, 8, 16, 32, 64, 128, 192, 256]
+SAVE_EPOCHS = np.arange(1, 1000, 4)
 
+def _preprocess_image(x):
+    """
+    Takes -
+    list of (h, w, 3)
+    tensor of (n, h, 3)
+    """
+    if isinstance(x, list):
+        x = np.stack(x, 0).transpose(0, 3, 1, 2)
+    x = torch.Tensor(x)
+    if x.requires_grad:
+        x = x.detach()
+
+    if x.dim() == 3:
+        x = x.unsqueeze(1)
+    # x = torch.nn.functional.interpolate(x, 128, mode='nearest')
+    x = tv_utils.make_grid(x, padding=2, normalize=True, nrow=4)
+    x = x.cpu().numpy()
+    return x
 
 class CoordConverter():
-    def __init__(self, w=384, h=160, fov=90, world_y=1.4, fixed_offset=2.0, device='cuda'):
+    def __init__(self, w=384, h=160, fov=90, world_y=0.88, fixed_offset=2.0, device='cuda'):
         self._img_size = torch.FloatTensor([w,h]).to(device)
         
         self._fov = fov
@@ -72,7 +92,7 @@ class LocationLoss(torch.nn.Module):
 def _log_visuals(rgb_image, birdview, speed, command, loss, pred_locations, _pred_locations, _teac_locations, size=8):
     import cv2
     import numpy as np
-    import utils.carla_utils as cu
+    from data_util import visualize_birdview
 
     WHITE = [255, 255, 255]
     BLUE = [0, 0, 255]
@@ -84,7 +104,7 @@ def _log_visuals(rgb_image, birdview, speed, command, loss, pred_locations, _pre
     for i in range(min(birdview.shape[0],size)):
         loss_i = loss[i].sum()
         canvas = np.uint8(_numpy(birdview[i]).transpose(1, 2, 0) * 255).copy()
-        canvas = cu.visualize_birdview(canvas)
+        canvas = visualize_birdview(canvas)
         rgb = np.uint8(_numpy(rgb_image[i]).transpose(1, 2, 0) * 255).copy()
         rows = [x * (canvas.shape[0] // 10) for x in range(10+1)]
         cols = [x * (canvas.shape[1] // 10) for x in range(10+1)]
@@ -166,13 +186,16 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
     iterator_tqdm = tqdm.tqdm(data, desc=desc, total=total)
     iterator = enumerate(iterator_tqdm)
 
-    tick = time.time()
+    total_loss = list()
+    images_list = list()
     
     import torch.distributions as tdist
     noiser = tdist.Normal(torch.tensor(0.0), torch.tensor(config['speed_noise']))
 
-    for i, (rgb_image, birdview, location, command, speed) in iterator:
-        rgb_image = rgb_image.to(config['device'])
+    for i, (rgb_image_left, rgb_image_right, birdview, location, command, speed) in iterator:
+        birdview = np.delete(birdview, [2], axis=1)
+        rgb_image_left = rgb_image_left.to(config['device'])
+        rgb_image_right = rgb_image_right.to(config['device'])
         birdview = birdview.to(config['device'])
         command = one_hot(command).to(config['device'])
         speed = speed.to(config['device'])
@@ -181,9 +204,9 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
             speed += noiser.sample(speed.size()).to(speed.device)
             speed = torch.clamp(speed, 0, 10)
 
-        if len(rgb_image.size()) > 4:
-            B, batch_aug, c, h, w = rgb_image.size()
-            rgb_image = rgb_image.view(B*batch_aug,c,h,w)
+        if len(rgb_image_right.size()) > 4:
+            B, batch_aug, c, h, w = rgb_image_right.size()
+            rgb_image_right = rgb_image_right.view(B*batch_aug,c,h,w)
             birdview = repeat(birdview, batch_aug)
             command = repeat(command, batch_aug)
             speed = repeat(speed, batch_aug)
@@ -192,7 +215,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
         with torch.no_grad():
             _teac_location, _teac_locations = teacher_net(birdview, speed, command)
         
-        _pred_location, _pred_locations = net(rgb_image, speed, command)
+        _pred_location, _pred_locations = net(rgb_image_left, rgb_image_right, speed, command)
         pred_location = coord_converter(_pred_location)
         pred_locations = coord_converter(_pred_locations)
         
@@ -204,35 +227,20 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
             loss_mean.backward()
             optim.step()
 
-        should_log = False
-        should_log |= i % config['log_iterations'] == 0
-        should_log |= not is_train
-        should_log |= is_first_epoch
+        images = _preprocess_image(_log_visuals(rgb_image_right, birdview, speed, command, loss,
+                pred_location, (_pred_location+1)*coord_converter._img_size/2, _teac_location))
 
-        if should_log:
-            metrics = dict()
-            metrics['loss'] = loss_mean.item()
-            
-            images = _log_visuals(
-                    rgb_image, birdview, speed, command, loss,
-                    pred_location, (_pred_location+1)*coord_converter._img_size/2, _teac_location)
-
-            bzu.log.scalar(is_train=is_train, loss_mean=loss_mean.item())
-            bzu.log.image(is_train=is_train, birdview=images)
-
-        bzu.log.scalar(is_train=is_train, fps=1.0/(time.time() - tick))
-
-        tick = time.time()
+        images_list.append(images)
 
         if is_first_epoch and i == 10:
             iterator_tqdm.close()
             break
+        total_loss.append(loss_mean.item())
+    return sum(total_loss)/len(total_loss), images_list
+
 
 
 def train(config):
-    bzu.log.init(config['log_dir'])
-    bzu.log.save_config(config)
-    teacher_config = bzu.log.load_config(config['teacher_args']['model_path'])
 
     data_train, data_val = load_data(**config['data_args'])
     criterion = LocationLoss()
@@ -241,48 +249,74 @@ def train(config):
         pretrained=config['model_args']['imagenet_pretrained'],
         all_branch=True
     ).to(config['device'])
-    net.load_state_dict(torch.load(config['phase0_ckpt']))
 
-    teacher_net = BirdViewPolicyModelSS(teacher_config['model_args']['backbone'], pretrained=True, all_branch=True).to(config['device'])
+    checkpoint = -1
+
+    if config['resume']:
+        log_dir = str(Path(config['log_dir']) / (config['folder_name']))
+        checkpoints = list(log_dir.glob('model-*.th'))
+        checkpoints = sorted(checkpoints, key=lambda x:int(str(x).split('-')[-1].split('.')[0]))
+        checkpoint = str(checkpoints[-1])
+        print ("load %s"%checkpoint)
+        net.load_state_dict(torch.load(checkpoint))
+        checkpoint = int(checkpoint.split('-')[-1].split('.')[0])
+    elif config['pretrained']:
+        print ("load %s"%config['phase0_ckpt'])
+        net.load_state_dict(torch.load(config['phase0_ckpt']))
+    else:
+        print("Loaded from Imagenet Pretrained")
+    
+
+    teacher_net = BirdViewPolicyModelSS(config['teacher_args']['backbone']).to(config['device'])
     teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
     teacher_net.eval()
-
+    
     coord_converter = CoordConverter(**config['agent_args']['camera_args'])
 
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
     for epoch in tqdm.tqdm(range(config['max_epoch']+1), desc='Epoch'):
-        train_or_eval(coord_converter, criterion, net, teacher_net, data_train, optim, True, config, epoch == 0)
-        train_or_eval(coord_converter, criterion, net, teacher_net, data_val, None, False, config, epoch == 0)
+        train_loss, train_images = train_or_eval(coord_converter, criterion, net, teacher_net, data_train, optim, True, config, epoch == 0)
+        val_loss, val_images = train_or_eval(coord_converter, criterion, net, teacher_net, data_val, None, False, config, epoch == 0)
+
+        writer = SummaryWriter(str(Path(config['log_dir']) / ("runs") / (config['folder_name'])))
+        writer.add_scalar('Loss/train', train_loss, epoch)
+        writer.add_scalar('Loss/val', val_loss, epoch)
+        writer.add_image('Image/train', train_images[-1], epoch)
+        writer.add_image('Image/val', val_images[-1], epoch)
 
         if epoch in SAVE_EPOCHS:
             torch.save(
                     net.state_dict(),
-                    str(Path(config['log_dir']) / ('model-%d.th' % epoch)))
+                    str(Path(config['log_dir']) / (config['folder_name']) / ('model-%d.th' % epoch)))
 
-        bzu.log.end_epoch()
+
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir', required=True)
+    parser.add_argument('--log_dir', default='/home/moonlab/Documents/karthik/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=256)
+    parser.add_argument('--folder_name', required=True)
 
     # Model
+    parser.add_argument('--imagenet_pretrained', action='store_true')
     parser.add_argument('--pretrained', action='store_true')
     parser.add_argument('--ckpt', required=True)
     
     # Teacher.
     parser.add_argument('--teacher_path', required=True)
+    parser.add_argument('--teacher_backbone', default='resnet18')
     
     parser.add_argument('--fixed_offset', type=float, default=4.)
     
     # Dataset.
     parser.add_argument('--batch_aug', type=int, default=1)
-    parser.add_argument('--dataset_dir', default='/raid0/dian/carla_0.9.6_data')
+    parser.add_argument('--dataset_dir', default='/home/moonlab/Documents/karthik/dataset_384_160')
     parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--speed_noise', type=float, default=0.0)
+    parser.add_argument('--resume', action='store_true')
     parser.add_argument('--augment', choices=['medium', 'medium_harder', 'super_hard', 'None', 'custom'], default='super_hard')
 
     # Optimizer.
@@ -298,6 +332,9 @@ if __name__ == '__main__':
             'phase0_ckpt': parsed.ckpt,
             'optimizer_args': {'lr': parsed.lr},
             'speed_noise': parsed.speed_noise,
+            'resume': parsed.resume,
+             'pretrained': parsed.pretrained,
+            'folder_name': parsed.folder_name,
             'data_args': {
                 'dataset_dir': parsed.dataset_dir,
                 'batch_size': parsed.batch_size,
@@ -309,19 +346,20 @@ if __name__ == '__main__':
                 },
             'model_args': {
                 'model': 'image_ss',
-                'imagenet_pretrained': parsed.pretrained,
+                'imagenet_pretrained': parsed.imagenet_pretrained,
                 'backbone': BACKBONE,
                 },
             'teacher_args' : {
                 'model_path': parsed.teacher_path,
+                'backbone': parsed.teacher_backbone,
                 },
             'agent_args': {
                 'camera_args': {
                     'w': 384,
                     'h': 160,
                     'fov': 90,
-                    'world_y': 1.4,
-                    'fixed_offset': 4.0,
+                    'world_y': 0.88,
+                    'fixed_offset': 3.5,
                 },
             }
         }

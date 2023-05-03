@@ -36,7 +36,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         
         self.deconv = nn.Sequential(
             nn.BatchNorm2d(2*self.c + 2*128),
-            nn.ConvTranspose2d(self.c + 128,256,3,2,1,1),
+            nn.ConvTranspose2d(2*self.c + 2*128,256,3,2,1,1),
             nn.ReLU(True),
             nn.BatchNorm2d(256),
             nn.ConvTranspose2d(256,128,3,2,1,1),

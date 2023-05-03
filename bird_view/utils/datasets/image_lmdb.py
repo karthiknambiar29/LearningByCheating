@@ -132,15 +132,20 @@ class ImageDataset(Dataset):
         
         bird_view = np.frombuffer(lmdb_txn.get(('birdview_%04d'%index).encode()), np.uint8).reshape(320,320,8) # (320,320,7)
         measurement = np.frombuffer(lmdb_txn.get(('measurements_%04d'%index).encode()), np.float32)
-        rgb_image = np.fromstring(lmdb_txn.get(('rgb_%04d'%index).encode()), np.uint8).reshape(160,384,3)
-
+        rgb_image_left = np.fromstring(lmdb_txn.get(('rgb_left_%04d'%index).encode()), np.uint8).reshape(160,384,3) # (160,384,3)
+        rgb_image_right = np.fromstring(lmdb_txn.get(('rgb_right_%04d'%index).encode()), np.uint8).reshape(160,384,3) # (160,384,3)
         if self.augmenter:
-            rgb_images = [self.augmenter(self.batch_read_number).augment_image(rgb_image) for i in range(self.batch_aug)]
+            rgb_images_left = [self.augmenter(self.batch_read_number).augment_image(rgb_image_left) for i in range(self.batch_aug)]
+            rgb_images_right = [self.augmenter(self.batch_read_number).augment_image(rgb_image_right) for i in range(self.batch_aug)]
+
         else:
-            rgb_images = [rgb_image for i in range(self.batch_aug)]
+            rgb_images_left = [rgb_image_left for i in range(self.batch_aug)]
+            rgb_images_right = [rgb_image_right for i in range(self.batch_aug)]
+
             
         if self.batch_aug == 1:
-            rgb_images = rgb_images[0]
+            rgb_images_left = rgb_images_left[0]
+            rgb_images_right = rgb_images_right[0]
                             
         ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic  = measurement # included traffic light information
         speed = np.linalg.norm([vx,vy,vz])
@@ -187,11 +192,13 @@ class ImageDataset(Dataset):
             locations.append([pixel_x, pixel_y])
         
         if self.batch_aug == 1:
-            rgb_images = self.rgb_transform(rgb_images)
+            rgb_images_left = self.rgb_transform(rgb_images_left)
+            rgb_images_right = self.rgb_transform(rgb_images_right)
         else:
             # if len()
             #     import pdb; pdb.set_trace()
-            rgb_images = torch.stack([self.rgb_transform(img) for img in rgb_images])
+            rgb_images_left = torch.stack([self.rgb_transform(img) for img in rgb_images_left])
+            rgb_images_right = torch.stack([self.rgb_transform(img) for img in rgb_images_right])
         bird_view = self.bird_view_transform(bird_view)
         
         # Create mask
@@ -219,7 +226,7 @@ class ImageDataset(Dataset):
             
         self.batch_read_number += 1
        
-        return rgb_images, bird_view, np.array(locations), cmd, speed
+        return rgb_images_left, rgb_images_right, bird_view, np.array(locations), cmd, speed
 
         
 def load_image_data(dataset_path, 
