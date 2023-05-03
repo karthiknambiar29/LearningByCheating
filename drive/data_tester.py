@@ -40,9 +40,9 @@ config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # image_net = ImagePolicyModelSS(backbone='resnet34').to(config['device'])
 # image_net.load_state_dict(torch.load(config['image_args']['model_path']))
 # image_net.eval()
-teacher_net = BirdViewPolicyModelSS(backbone='resnet18').to(config['device'])
-teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
-teacher_net.eval()
+# teacher_net = BirdViewPolicyModelSS(backbone='resnet18').to(config['device'])
+# teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
+# teacher_net.eval()
 class CoordConverter():
     def __init__(self, w=800, h=600, fov=90, world_y=0.88, fixed_offset=0.0, device='cuda'):
         self._w = w
@@ -122,9 +122,9 @@ def crop_birdview(birdview, dx=0, dy=0):
             y-CROP_SIZE//2:y+CROP_SIZE//2]
 
     return birdview
-
+import sys
 args = YamlConfig.from_nested_dicts(load_config('config/hound_straight.yaml'))
-env = lmdb.open('/home/moonlab/Documents/karthik/lbc/001')
+env = lmdb.open('/home/moonlab/Documents/karthik/dataset_384_160/{}'.format(sys.argv[1]))
 pygame.init()
 pygame.font.init()
 display = pygame.display.set_mode(
@@ -143,18 +143,18 @@ with env.begin() as txn:
 
     length = int(txn.get(str('len').encode()))
     for i in range(length-25):
-        rgb_left = np.fromstring(txn.get(('rgb_left_%04d'%i).encode()), np.uint8).reshape(600,800,3)
-        rgb_right = np.fromstring(txn.get(('rgb_right_%04d'%i).encode()), np.uint8).reshape(600,800,3)
+        rgb_left = np.fromstring(txn.get(('rgb_left_%04d'%i).encode()), np.uint8).reshape(160,384,3)
+        rgb_right = np.fromstring(txn.get(('rgb_right_%04d'%i).encode()), np.uint8).reshape(160,384,3)
         bird_view = np.fromstring(txn.get(('birdview_%04d'%i).encode()), np.uint8).reshape(320,320,8)
         # removing traffic channels
-        bird_view = np.delete(bird_view, [2], axis=-1)
+        # bird_view = np.delete(bird_view, [2], axis=-1)
         measurement = np.frombuffer(txn.get(('measurements_%04d'%i).encode()), np.float32)
         display.blit(pygame.surfarray.make_surface(rgb_left.swapaxes(0, 1)), (0, 0))
-        display.blit(pygame.surfarray.make_surface(rgb_right.swapaxes(0, 1)), (800, 0))
-        display.blit(pygame.surfarray.make_surface(np.zeros((320, 280))), (1600, 320))
+        display.blit(pygame.surfarray.make_surface(rgb_right.swapaxes(0, 1)), (0, 160))
+        display.blit(pygame.surfarray.make_surface(np.zeros((320, 320))), (704, 0))
         birdview = crop_birdview(bird_view)
         bird_view = visualize_birdview(bird_view)
-        display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (1600, 0))
+        display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (384, 0))
         ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic_light  = measurement
         v_offset = 4
         bar_width = 106
@@ -187,33 +187,33 @@ with env.begin() as txn:
         
         #birdview
         # birdview = np.reshape(birdview, (192, 192, 5))
-        birdview = birdview_transform(birdview)
-        birdview = birdview[None, :].to(config['device'])
-        rgb_left = birdview_transform(rgb_left)
-        rgb_right = birdview_transform(rgb_right)
-        rgb_left = rgb_left[None, :].to(config['device'])
-        rgb_right = rgb_right[None, :].to(config['device'])
-        command = one_hot(torch.Tensor([cmd])).to(config['device'])
-        speed = torch.Tensor([float(speed)]).to(config['device'])
-        traffic = torch.Tensor([traffic_light]).to(config['device'])
-        print(command)
-        with torch.no_grad():
-            # _image_location = image_net(rgb_left, rgb_right, speed, command, traffic)
-            _teac_location = teacher_net(birdview, speed, command, traffic)
-        # _image_location = _image_location.squeeze().detach().cpu().numpy()
-        # _image_location = (_image_location +1) * np.array([800, 600])/2
-        coord_converter = CoordConverter()
-        teac_location = coord_converter(_teac_location)* np.array([800, 600])/2
-        # print(teac_location.shape)
-        _teac_location = (_teac_location + 1) * (0.5 * 192)/PIXELS_PER_METER
-        # print(_teac_location)
-        # print(_image_location)
-        for teac_loc in _teac_location[0]:
-            pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0]*5+320//2+1600, 192+teac_loc[1], 3, 3))
-        # for teac_loc in _image_location:
-        #     pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0], teac_loc[1], 3, 3))
-        for teac_loc in teac_location[0]:
-            pygame.draw.rect(display, RED, pygame.Rect(teac_loc[1], teac_loc[0], 3, 3))
+        # birdview = birdview_transform(birdview)
+        # birdview = birdview[None, :].to(config['device'])
+        # rgb_left = birdview_transform(rgb_left)
+        # rgb_right = birdview_transform(rgb_right)
+        # rgb_left = rgb_left[None, :].to(config['device'])
+        # rgb_right = rgb_right[None, :].to(config['device'])
+        # command = one_hot(torch.Tensor([cmd])).to(config['device'])
+        # speed = torch.Tensor([float(speed)]).to(config['device'])
+        # traffic = torch.Tensor([traffic_light]).to(config['device'])
+        # print(command)
+        # with torch.no_grad():
+        #     # _image_location = image_net(rgb_left, rgb_right, speed, command, traffic)
+        #     _teac_location = teacher_net(birdview, speed, command, traffic)
+        # # _image_location = _image_location.squeeze().detach().cpu().numpy()
+        # # _image_location = (_image_location +1) * np.array([800, 600])/2
+        # coord_converter = CoordConverter()
+        # teac_location = coord_converter(_teac_location)* np.array([800, 600])/2
+        # # print(teac_location.shape)
+        # _teac_location = (_teac_location + 1) * (0.5 * 192)/PIXELS_PER_METER
+        # # print(_teac_location)
+        # # print(_image_location)
+        # for teac_loc in _teac_location[0]:
+        #     pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0]*5+320//2+1600, 192+teac_loc[1], 3, 3))
+        # # for teac_loc in _image_location:
+        # #     pygame.draw.rect(display, RED, pygame.Rect(teac_loc[0], teac_loc[1], 3, 3))
+        # for teac_loc in teac_location[0]:
+        #     pygame.draw.rect(display, RED, pygame.Rect(teac_loc[1], teac_loc[0], 3, 3))
         # print(_teac_location, teac_location)
         # print(coord_converter)
         # DISPLAY RENDERING
@@ -235,68 +235,68 @@ with env.begin() as txn:
                 surface = _font_mono.render(item, True, (255, 255, 255))
                 display.blit(surface, (1608, 320+v_offset))
                 v_offset +=18
-            gap = 5
-            n_step = 5
-            ox, oy, oz, ori_ox, ori_oy  = measurement[:5]
-            gt_loc = []
-            # for dt in range(gap+15, gap*(n_step+1), gap):
-            dt = 0
-            while dt < 25 :
-                index = i + dt
-                f_measurement = np.frombuffer(txn.get(("measurements_%04d"%index).encode()), np.float32)
-                x, y, z, ori_x, ori_y = f_measurement[:5]
-                xx, yy = world_to_pixel(x, y, ox, oy, ori_ox, ori_oy, offset=(0, 0))/PIXELS_PER_METER
-                thres_x, thres_y = xx, yy
-                # if abs(xx) < 3.5:
-                #     if abs(yy) > 2.0:
-                #         gt_loc.append([-3.5, 2.0])
-                #     else:
-                #         gt_loc.append([-3.5, 0.0])
-                # elif abs(xx) > 3.5:
-                #     if abs(yy) > 2.0:
-                #         gt_loc.append([xx, 2.0])
-                #     else:
-                #         gt_loc.append([xx, yy])
-                # else:
-                gt_loc.append([xx-3.5, yy])
-                dt +=5
-            # print('gt', np.array(gt_loc)*5)
-            for loc in gt_loc:
-                pixel_y = loc[0]*5
-                pixel_x = loc[1]*5
-                pygame.draw.rect(display, BLUE, pygame.Rect(pixel_x+320//2+1600, 260+pixel_y-14, 3, 3))
-            ROTATION_MATRIX = np.array([
-                [1, 0, 0, 0],
-                [0, 1, 0, 0],
-                [0, 0, -1, 0],
-            ])
+            # gap = 5
+            # n_step = 5
+            # ox, oy, oz, ori_ox, ori_oy  = measurement[:5]
+            # gt_loc = []
+            # # for dt in range(gap+15, gap*(n_step+1), gap):
+            # dt = 0
+            # while dt < 25 :
+            #     index = i + dt
+            #     f_measurement = np.frombuffer(txn.get(("measurements_%04d"%index).encode()), np.float32)
+            #     x, y, z, ori_x, ori_y = f_measurement[:5]
+            #     xx, yy = world_to_pixel(x, y, ox, oy, ori_ox, ori_oy, offset=(0, 0))/PIXELS_PER_METER
+            #     thres_x, thres_y = xx, yy
+            #     # if abs(xx) < 3.5:
+            #     #     if abs(yy) > 2.0:
+            #     #         gt_loc.append([-3.5, 2.0])
+            #     #     else:
+            #     #         gt_loc.append([-3.5, 0.0])
+            #     # elif abs(xx) > 3.5:
+            #     #     if abs(yy) > 2.0:
+            #     #         gt_loc.append([xx, 2.0])
+            #     #     else:
+            #     #         gt_loc.append([xx, yy])
+            #     # else:
+            #     gt_loc.append([xx-3.5, yy])
+            #     dt +=5
+            # # print('gt', np.array(gt_loc)*5)
+            # for loc in gt_loc:
+            #     pixel_y = loc[0]*5
+            #     pixel_x = loc[1]*5
+            #     pygame.draw.rect(display, BLUE, pygame.Rect(pixel_x+320//2+1600, 260+pixel_y-14, 3, 3))
+            # ROTATION_MATRIX = np.array([
+            #     [1, 0, 0, 0],
+            #     [0, 1, 0, 0],
+            #     [0, 0, -1, 0],
+            # ])
 
-            f = 800 /(2 * np.tan(90 * np.pi / 360))
-            #print(f)
-            A = np.array([
-                [f, 0., 800/2],
-                [0, f, 600/2],
-                [0., 0., 1.]
-            ])
-            EXTRINSIC_ROTATION_LEFT = np.array([[0, 1, 0, -0.15],
-                                        [0, 0, 1, 0.88],
-                                        [1, 0, 0, 2.2]])
-            EXTRINSIC_ROTATION_RIGHT = np.array([[0, 1, 0, 0.5],
-                                        [0, 0, 1, -1.4],
-                                        [1, 0, 0, -2.0]])
-            for loc in gt_loc:
-                # print(loc)
-                point = np.array([loc[1]-0.15, +0.88, loc[0]+2.2, 1])
-                #print('gt', point)
-                point_left = np.matmul(np.matmul(A, ROTATION_MATRIX), point)
-                point_left /= point_left[-1]
-                point_right = np.matmul(np.matmul(A, ROTATION_MATRIX), np.concatenate([np.matmul(EXTRINSIC_ROTATION_RIGHT,point), [1]]))
-                point_right /= point_right[-1]
-                # point_left[0] = np.clip(point_left[0], 0, 770)
-                # point_left[1] = np.clip(point_left[1], 0, 570)
-                #print('point_left', point_left)
-                if 0 < point_left[0] and point_left[0] < 800 and 0 < point_left[1] and  point_left[1] < 600:
-                    pygame.draw.rect(display, BLUE, pygame.Rect(point_left[0], point_left[1], 3, 3))
+            # f = 384 /(2 * np.tan(90 * np.pi / 360))
+            # #print(f)
+            # A = np.array([
+            #     [f, 0., 384/2],
+            #     [0, f, 160/2],
+            #     [0., 0., 1.]
+            # ])
+            # EXTRINSIC_ROTATION_LEFT = np.array([[0, 1, 0, -0.15],
+            #                             [0, 0, 1, 0.88],
+            #                             [1, 0, 0, 2.2]])
+            # EXTRINSIC_ROTATION_RIGHT = np.array([[0, 1, 0, 0.5],
+            #                             [0, 0, 1, -1.4],
+            #                             [1, 0, 0, -2.0]])
+            # for loc in gt_loc:
+            #     # print(loc)
+            #     point = np.array([loc[1]-0.15, +0.88, loc[0]+2.2, 1])
+            #     #print('gt', point)
+            #     point_left = np.matmul(np.matmul(A, ROTATION_MATRIX), point)
+            #     point_left /= point_left[-1]
+            #     point_right = np.matmul(np.matmul(A, ROTATION_MATRIX), np.concatenate([np.matmul(EXTRINSIC_ROTATION_RIGHT,point), [1]]))
+            #     point_right /= point_right[-1]
+            #     # point_left[0] = np.clip(point_left[0], 0, 770)
+            #     # point_left[1] = np.clip(point_left[1], 0, 570)
+            #     #print('point_left', point_left)
+            #     if 0 < point_left[0] and point_left[0] < 800 and 0 < point_left[1] and  point_left[1] < 600:
+            #         pygame.draw.rect(display, BLUE, pygame.Rect(point_left[0], point_left[1], 3, 3))
                 #else: 
                     #print('XX')
 

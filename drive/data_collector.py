@@ -196,12 +196,12 @@ class World(object):
         if self.rgb_image_left is not None:
             display.blit(self.render_image(self.rgb_image_left), (0, 0))
         if self.rgb_image_right is not None:
-            display.blit(self.render_image(self.rgb_image_right), (800, 0))
+            display.blit(self.render_image(self.rgb_image_right), (0, 160))
 
         observations = self.get_observations(agent)
         bird_view = visualize_birdview(get_birdview(self.get_observations(agent)))
-        display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (1600, 0))
-        display.blit(pygame.surfarray.make_surface(np.zeros((320, 280))), (1600, 320))
+        display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (384, 0))
+        display.blit(pygame.surfarray.make_surface(np.zeros((320, 320))), (704, 0))
         # VELOCITY
         v_offset = 4
         bar_width = 106
@@ -237,23 +237,23 @@ class World(object):
             if isinstance(item, tuple):
                 if item[-1] < 0:
                     surface = self._font_mono.render(item[0], True, (255, 255, 255))
-                    display.blit(surface, (1608, 320+v_offset))
-                    rect_border = pygame.Rect((1800, 320+v_offset + 4), (bar_width, 6))
+                    display.blit(surface, (708, v_offset))
+                    rect_border = pygame.Rect((900, v_offset + 4), (bar_width, 6))
                     pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
-                    rect = pygame.Rect((1800 + (item[1]+1)/2 * (bar_width - 6), 320+v_offset + 4), (6, 6))
+                    rect = pygame.Rect((900 + (item[1]+1)/2 * (bar_width - 6), v_offset + 4), (6, 6))
                     pygame.draw.rect(display, (255, 255, 255), rect)
                     v_offset +=18
                 else:    
                     surface = self._font_mono.render(item[0], True, (255, 255, 255))
-                    display.blit(surface, (1608, 320+v_offset))
-                    rect_border = pygame.Rect((1800, 320+v_offset + 4), (bar_width, 6))
+                    display.blit(surface, (708, v_offset))
+                    rect_border = pygame.Rect((900, v_offset + 4), (bar_width, 6))
                     pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
-                    rect = pygame.Rect((1800, 320+v_offset+4), (item[1] * bar_width, 6))
+                    rect = pygame.Rect((900, v_offset+4), (item[1] * bar_width, 6))
                     pygame.draw.rect(display, (255, 255, 255), rect)
                     v_offset +=18
             else:
                 surface = self._font_mono.render(item, True, (255, 255, 255))
-                display.blit(surface, (1608, 320+v_offset))
+                display.blit(surface, (708, v_offset))
                 v_offset +=18
         
         
