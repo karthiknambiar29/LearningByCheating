@@ -289,7 +289,7 @@ if __name__ == '__main__':
     parser.add_argument('--fixed_offset', type=float, default=3.5)
 
     # Dataset.
-    parser.add_argument('--dataset_dir', default='/home/moonlab/Documents/karthik/dataset_384_160')
+    parser.add_argument('--dataset_dir', default='/media/storage/karthik/dataset_384_160')
     parser.add_argument('--batch_size', type=int, default=96)
     parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default=None)
     parser.add_argument('--resume', action='store_true')
