@@ -140,8 +140,7 @@ def _log_visuals(rgb_image, birdview, speed, command, loss, pred_locations, _pre
         for x, y in pred_locations[i]: _dot(canvas, x, y, RED)
 
         _write('Command: %s' % _command, 1, 0)
-        _write('Loss: %.2f' % loss[i].item(), 2, 0)
-        
+        _write('Loss: %.2f' % loss[i].item(), 2, 0)        
         
         images.append((loss[i].item(), _stick_together(rgb, canvas)))
 
@@ -254,7 +253,7 @@ def train(config):
 
     if config['resume']:
         log_dir = str(Path(config['log_dir']) / (config['folder_name']))
-        checkpoints = list(log_dir.glob('model-*.th'))
+        checkpoints = list(glob.glob(log_dir + '/model-*.th'))
         checkpoints = sorted(checkpoints, key=lambda x:int(str(x).split('-')[-1].split('.')[0]))
         checkpoint = str(checkpoints[-1])
         print ("load %s"%checkpoint)
@@ -295,29 +294,29 @@ def train(config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir', default='/home/moonlab/Documents/karthik/LearningByCheating/training')
+    parser.add_argument('--log_dir', default='/workspace/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
-    parser.add_argument('--max_epoch', default=256)
+    parser.add_argument('--max_epoch', default=1000)
     parser.add_argument('--folder_name', required=True)
 
     # Model
     parser.add_argument('--imagenet_pretrained', action='store_true')
     parser.add_argument('--pretrained', action='store_true')
-    parser.add_argument('--ckpt', default="/home/moonlab/Documents/karthik/LearningByCheating/ckpts/image_new/model.th")
+    parser.add_argument('--ckpt', default="/workspace/LearningByCheating/ckpts/image_new/model.th")
     
     # Teacher.
-    parser.add_argument('--teacher_path', default="/home/moonlab/Documents/karthik/LearningByCheating/ckpts/priveleged/model-128.th")
+    parser.add_argument('--teacher_path', default="/workspace/LearningByCheating/ckpts/priveleged/model-128.th")
     parser.add_argument('--teacher_backbone', default='resnet18')
     
     parser.add_argument('--fixed_offset', type=float, default=4.)
     
     # Dataset.
     parser.add_argument('--batch_aug', type=int, default=1)
-    parser.add_argument('--dataset_dir', default='/home/moonlab/Documents/karthik/dataset_384_160')
+    parser.add_argument('--dataset_dir', default='/workspace/dataset_384_160')
     parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--speed_noise', type=float, default=0.1)
     parser.add_argument('--resume', action='store_true')
-    parser.add_argument('--augment', choices=['medium', 'medium_harder', 'super_hard', 'None', 'custom'], default='super_hard')
+    parser.add_argument('--augment', choices=['medium', 'medium_harder', 'super_hard', 'None', 'custom'], default='medium')
 
     # Optimizer.
     parser.add_argument('--lr', type=float, default=1e-4)
@@ -359,7 +358,7 @@ if __name__ == '__main__':
                     'h': 160,
                     'fov': 90,
                     'world_y': 0.88,
-                    'fixed_offset': 3.5,
+                    'fixed_offset': parsed.fixed_offset,
                 },
             }
         }

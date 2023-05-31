@@ -124,7 +124,7 @@ def crop_birdview(birdview, dx=0, dy=0):
     return birdview
 import sys
 args = YamlConfig.from_nested_dicts(load_config('config/hound_config.yaml'))
-env = lmdb.open('/home/moonlab/Documents/karthik/dataset_384_160/train/{}'.format(sys.argv[1]))
+env = lmdb.open('/home/carla/Desktop/dataset_384_160/{}'.format(sys.argv[1]))
 pygame.init()
 pygame.font.init()
 display = pygame.display.set_mode(

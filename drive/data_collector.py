@@ -508,6 +508,7 @@ def game_loop(args):
 
             world = World(sim_world, client, traffic_manager, synchronous_master, args)
             agent = BehaviorAgent(world.player, behavior=args.behaviour)
+            print(args.behaviour)
 
 
             # Set the agent destination
@@ -695,7 +696,7 @@ def main():
     # logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
 
     # logging.info('listening to server %s:%s', args.host, args.port)
-    args = YamlConfig.from_nested_dicts(load_config('config/hound_straight.yaml'))
+    args = YamlConfig.from_nested_dicts(load_config('config/hound_config.yaml'))
     try:
 
         game_loop(args)
