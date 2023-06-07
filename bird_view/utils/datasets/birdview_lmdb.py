@@ -66,7 +66,6 @@ class BirdViewDataset(Dataset):
                     full_path,
                     max_readers=1, readonly=True,
                     lock=False, readahead=False, meminit=False).begin(write=False)
-
             n = int(txn.get('len'.encode())) - self.gap * self.n_step
             offset = len(self._name_map)
 
@@ -186,7 +185,7 @@ class BiasedBirdViewDataset(BirdViewDataset):
             index = self.idx_map[idx]
             
             measurement = np.frombuffer(lmdb_txn.get(('measurements_%04d'%index).encode()), np.float32)
-            ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear = measurement
+            ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic = measurement
             speed = np.linalg.norm([vx,vy,vz])
             
             if cmd != 4 and speed > 1.0:

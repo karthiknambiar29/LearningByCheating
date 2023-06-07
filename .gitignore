@@ -17,7 +17,9 @@ python_api.md
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-
+dataset_384_160
+training/birdview
+ckpts
 # C extensions
 *.so
 training/image_phase*

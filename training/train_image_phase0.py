@@ -273,7 +273,7 @@ def train(config):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir', default='/workspace/LearningByCheating/training')
+    parser.add_argument('--log_dir', default='/home/moonlab/Documents/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=2)
     parser.add_argument('--folder_name', required=True)
@@ -283,13 +283,13 @@ if __name__ == '__main__':
     parser.add_argument('--pretrained', action='store_true')
     
     # Teacher.
-    parser.add_argument('--teacher_path', default="/workspace/LearningByCheating/ckpts/priveleged/model-128.th")
+    parser.add_argument('--teacher_path', default="/home/moonlab/Documents/LearningByCheating/ckpts/priveleged/model-128.th")
     parser.add_argument('--teacher_backbone', default='resnet18')
     
     parser.add_argument('--fixed_offset', type=float, default=3.5)
 
     # Dataset.
-    parser.add_argument('--dataset_dir', default='/workspace/dataset_384_160')
+    parser.add_argument('--dataset_dir', default='/media/storage/karthik/dataset_384_160')
     parser.add_argument('--batch_size', type=int, default=96)
     parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default=None)
     parser.add_argument('--resume', action='store_true')

@@ -29,7 +29,7 @@ from torch.utils.tensorboard import SummaryWriter
 BACKBONE = 'resnet18'
 GAP = 5
 N_STEP = 5
-SAVE_EPOCHS = np.arange(1, 1000, 4)
+SAVE_EPOCHS = np.arange(1, 1000, 1)
 
 class LocationLoss(torch.nn.Module):
     def __init__(self, w=192, h=192, choice='l2'):
@@ -81,7 +81,7 @@ def _log_visuals(birdview, speed, command, loss, locations, _locations, size=16)
     WHITE = [255, 255, 255]
     BLUE = [0, 0, 255]
     RED = [255, 0, 0]
-    _numpy = lambda x: x.detach().cpu().numpy().copy()
+    _numpy = lambda x: x.detach().cpu().numpy()
 
     images = list()
 
@@ -131,7 +131,7 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
     iterator = enumerate(iterator_tqdm)
 
     total_loss = []
-    images_list = []
+    # images_list = []
 
     for i, (birdview, location, command, speed) in iterator:
         birdview = np.delete(birdview, [2], axis=1)
@@ -149,16 +149,16 @@ def train_or_eval(criterion, net, data, optim, is_train, config, is_first_epoch)
             loss_mean.backward()
             optim.step()
 
-        images = _preprocess_image(_log_visuals(birdview, speed, command, loss,
-                location, pred_location))
+        # images = _preprocess_image(_log_visuals(birdview, speed, command, loss,
+        #         location, pred_location))
 
-        images_list.append(images)
+        # images_list.append(images)
 
         if is_first_epoch and i == 10:
             iterator_tqdm.close()
             break
         total_loss.append(loss_mean.item())
-    return sum(total_loss)/len(total_loss), images_list
+    return sum(total_loss)/len(total_loss)#, images_list
 
 def train(config):
     data_train, data_val = load_data(**config['data_args'])
@@ -168,26 +168,26 @@ def train(config):
 
     if config['resume']:
         log_dir = str(Path(config['log_dir']) / ((config['folder_name'])))
-        checkpoints = list(log_dir.glob('model-*.th'))
+        checkpoints = list(glob.glob(log_dir + '/model-*.th'))
         checkpoints = sorted(checkpoints, key=lambda x:int(str(x).split('-')[-1].split('.')[0]))
         checkpoint = str(checkpoints[-1])
         print ("load %s"%checkpoint)
         net.load_state_dict(torch.load(checkpoint))
         checkpoint = int(checkpoint.split('-')[-1].split('.')[0])
     elif config['pretrained']:
-        print ("load %s"%"/home/moonlab/Documents/karthik/LearningByCheating/ckpts/priveleged/model-128.th")
-        net.load_state_dict(torch.load("/home/moonlab/Documents/karthik/LearningByCheating/ckpts/priveleged/model-128.th"))
+        print ("load %s"%"/home/moonlab/Documents/LearningByCheating/ckpts/priveleged/model-128.th")
+        net.load_state_dict(torch.load("/home/moonlab/Documents/LearningByCheating/ckpts/priveleged/model-128.th"))
 
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
     for epoch in tqdm.tqdm(range((checkpoint)+1, config['max_epoch']+1), desc='Epoch'):
-        train_loss, train_images = train_or_eval(criterion, net, data_train, optim, True, config, epoch == 0)
-        val_loss, val_images = train_or_eval(criterion, net, data_val, None, False, config, epoch == 0)
+        train_loss= train_or_eval(criterion, net, data_train, optim, True, config, epoch == 0)
+        val_loss = train_or_eval(criterion, net, data_val, None, False, config, epoch == 0)
         writer = SummaryWriter(str(Path(config['log_dir']) / ("runs") / (config['folder_name'])))
         writer.add_scalar('Loss/train', train_loss, epoch)
         writer.add_scalar('Loss/val', val_loss, epoch)
-        writer.add_image('Image/train', train_images[-1], epoch)
-        writer.add_image('Image/val', val_images[-1], epoch)
+        # writer.add_image('Image/train', train_images[-1], epoch)
+        # writer.add_image('Image/val', val_images[-1], epoch)
         if epoch in SAVE_EPOCHS:
             torch.save(
                     net.state_dict(),
@@ -197,17 +197,17 @@ def train(config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--log_dir', default='/home/moonlab/Documents/karthik/LearningByCheating/training')
+    parser.add_argument('--log_dir', default='/home/moonlab/Documents/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=1000)
-    parser.add_argument('--folder_name', required=True)
+    parser.add_argument('--folder_name', default='birdview')
 
     # Model
     parser.add_argument('--pretrained', action='store_true')
     parser.add_argument('--backbone', default='resnet18')
 
     # Dataset.
-    parser.add_argument('--dataset_dir', default='/home/moonlab/Documents/karthik/dataset_384_160')
+    parser.add_argument('--dataset_dir', default='/home/moonlab/Documents/LearningByCheating/dataset_384_160')
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--x_jitter', type=int, default=5)
     parser.add_argument('--y_jitter', type=int, default=0)
