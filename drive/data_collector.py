@@ -113,7 +113,7 @@ class World(object):
         self.generate_traffic(traffic_manager, synchronous_master)
 
     def restart(self):
-        self.world.set_weather(carla.WeatherParameters.ClearNoon)
+        self.world.set_weather(carla.WeatherParameters.ClearSunset)
         vehicles = self.world.get_actors().filter('vehicle.*')
         for v in vehicles:
             _ = v.destroy()
@@ -483,7 +483,7 @@ def game_loop(args):
             sim_world = client.load_world(args.town)
             traffic_manager = client.get_trafficmanager(args.tm_port)
             traffic_manager.set_global_distance_to_leading_vehicle(2.5)
-            
+            print(args.sync)
 
             if args.sync:
                 original_settings = sim_world.get_settings()

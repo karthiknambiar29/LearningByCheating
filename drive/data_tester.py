@@ -29,7 +29,7 @@ CROP_SIZE = 320
 MAP_SIZE=320
 config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
             'teacher_args' : {
-                'model_path': '/home/moonlab/Documents/LearningByCheating/training/birdview/model-95.th',
+                'model_path': '/home/moonlab/Documents/LearningByCheating/training/birdview/model-181.th',
                 },
             'image_args' : {
                 'model_path': '/home/moonlab/Documents/karthik/LearningByCheating/model-249.th',
@@ -38,12 +38,12 @@ config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # image_net = ImagePolicyModelSS(backbone='resnet34').to(config['device'])
 # image_net.load_state_dict(torch.load(config['image_args']['model_path']))
 # image_net.eval()
-teacher_net = BirdViewPolicyModelSS(backbone='resnet18').to(config['device'])
-teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
-teacher_net.eval()
+# teacher_net = BirdViewPolicyModelSS(backbone='resnet18').to(config['device'])
+# teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
+# teacher_net.eval()
 
 class CoordConverter():
-    def __init__(self, w=384, h=160, fov=90, world_y=0.88, fixed_offset=0, device='cuda'):
+    def __init__(self, w=384, h=160, fov=90, world_y=0.88, fixed_offset=2.5, device='cuda'):
         self._w = w
         self._h = h
         self._img_size = torch.FloatTensor([w,h]).to(device)
@@ -114,7 +114,7 @@ def crop_birdview(birdview, dx=0, dy=0):
     return birdview
 import sys
 args = YamlConfig.from_nested_dicts(load_config('config/hound_config.yaml'))
-env = lmdb.open('/home/moonlab/Documents/LearningByCheating/dataset_384_160/train/{}'.format(sys.argv[1]))
+env = lmdb.open('/home/moonlab/Documents/LearningByCheating/dataset/{}'.format(sys.argv[1]))
 pygame.init()
 pygame.font.init()
 display = pygame.display.set_mode(
@@ -148,13 +148,14 @@ with env.begin() as txn:
         # rgb_right = rgb_right[None, :].to(config['device'])
         command = one_hot(torch.Tensor([cmd])).to(config['device'])
         speed = np.sqrt(vx**2 + vy**2+vz**2)
+        print(float(speed)*18/5)
         speed = torch.Tensor([float(speed)]).to(config['device'])
-        with torch.no_grad():
-            _teac_locations = teacher_net(birdview, speed, command)
-        coord_converter = CoordConverter()
-        _teac_locations = _teac_locations.squeeze().detach().cpu().numpy()
-        for x, y in (_teac_locations+1) * (0.5*192):
-            pygame.draw.rect(display, RED, pygame.Rect(int(x+384), int(y), 3, 3))
+        # with torch.no_grad():
+        #     _teac_locations = teacher_net(birdview, speed, command)
+        # coord_converter = CoordConverter()
+        # _teac_locations = _teac_locations.squeeze().detach().cpu().numpy()
+        # for x, y in (_teac_locations+1) * (0.5*192):
+        #     pygame.draw.rect(display, RED, pygame.Rect(int(x+384), int(y), 3, 3))
 
         gap = 5
         n_step = 5
@@ -171,9 +172,9 @@ with env.begin() as txn:
             gt_loc.append([pixel_x, pixel_y])
             pygame.draw.rect(display, BLUE, pygame.Rect(pixel_x+384, pixel_y, 3, 3))
             dt +=5
-        location = coord_converter(_teac_locations)
-        for x, y in location[0]:
-            pygame.draw.rect(display, BLUE, pygame.Rect(x, y, 3, 3))
+        # location = coord_converter(_teac_locations)
+        # for x, y in location[0]:
+        #     pygame.draw.rect(display, BLUE, pygame.Rect(x, y, 3, 3))
 
             pygame.display.update()
     pygame.quit()

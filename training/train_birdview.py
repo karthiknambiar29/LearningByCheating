@@ -200,14 +200,14 @@ if __name__ == '__main__':
     parser.add_argument('--log_dir', default='/home/moonlab/Documents/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=1000)
-    parser.add_argument('--folder_name', default='birdview')
+    parser.add_argument('--folder_name', default='birdview_new')
 
     # Model
     parser.add_argument('--pretrained', action='store_true')
     parser.add_argument('--backbone', default='resnet18')
 
     # Dataset.
-    parser.add_argument('--dataset_dir', default='/home/moonlab/Documents/LearningByCheating/dataset_384_160')
+    parser.add_argument('--dataset_dir', default='/home/moonlab/Documents/LearningByCheating/dataset')
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--x_jitter', type=int, default=5)
     parser.add_argument('--y_jitter', type=int, default=0)

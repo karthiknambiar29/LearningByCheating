@@ -23,7 +23,7 @@ camera:
 
 # Carla Config
 verbose: false
-host: 172.17.0.7 # IP of the host server (default: 127.0.0.1)
+host: 127.0.0.1 # IP of the host server (default: 127.0.0.1)
 tm_port: 8000
 port: 2000
 width: 1024
@@ -34,7 +34,7 @@ town: Town01
 
 # Traffic Config
 
-number_of_vehicles: 25
+number_of_vehicles: 100
 number_of_walkers: 0
 safe: false
 filterv: vehicle.*
@@ -46,7 +46,7 @@ seedw: 0
 car_lights_on: True
 
 # Dataset Config
-frames_per_episode: 2000
-n_episodes: 40
-dataset_path: /home/carla/Desktop/dataset_384_160
-behaviour: cautious
+frames_per_episode: 1000
+n_episodes: 60
+dataset_path: /home/moonlab/Documents/LearningByCheating/dataset
+behaviour: normal
