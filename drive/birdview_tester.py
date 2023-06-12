@@ -44,7 +44,7 @@ teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
 teacher_net.eval()
 
 class CoordConverter():
-    def __init__(self, w=384, h=160, fov=90, world_y=0.88, fixed_offset=2.5, device='cuda'):
+    def __init__(self, w=384, h=160, fov=90, world_y=0.88, fixed_offset=0.0, device='cuda'):
         self._w = w
         self._h = h
         self._img_size = torch.FloatTensor([w,h]).to(device)
@@ -171,9 +171,14 @@ with env.begin() as txn:
             pixel_y, pixel_x = world_to_pixel(x,y,ox,oy,ori_ox,ori_oy)
             pixel_x = pixel_x - (320-192)//2
             pixel_y = 192 - (320-pixel_y)+70
-            gt_loc.append([pixel_x, pixel_y])
+            # gt_loc.append([pixel_x, pixel_y])
             pygame.draw.rect(display, BLUE, pygame.Rect(pixel_x+384, pixel_y, 3, 3))
             dt +=5
+            gt_loc.append(np.array([pixel_x, pixel_y])/(0.5*192) - 1.0)
+        gt_location = coord_converter(gt_loc)
+        
+        for x, y in gt_location[0]:
+            pygame.draw.rect(display, BLUE, pygame.Rect(x, y, 3, 3))
         location = coord_converter(_teac_locations)
         for x, y in location[0]:
             pygame.draw.rect(display, RED, pygame.Rect(x, y, 3, 3))
