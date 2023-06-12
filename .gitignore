@@ -22,6 +22,7 @@ carla_14
 dataset_384_160
 training/birdview
 training/birdview_new
+training/image_direct
 ckpts
 # C extensions
 *.so

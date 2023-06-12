@@ -33,7 +33,7 @@ GAP = 5
 N_STEP = 5
 PIXELS_PER_METER = 5
 CROP_SIZE = 192
-SAVE_EPOCHS = np.arange(1, 1000, 4)
+SAVE_EPOCHS = np.arange(1, 1000, 1)
 
 def _preprocess_image(x):
     """
@@ -55,7 +55,7 @@ def _preprocess_image(x):
     return x
 
 class CoordConverter():
-    def __init__(self, w=384, h=160, fov=90, world_y=0.88, fixed_offset=3.5, device='cuda'):
+    def __init__(self, w=384, h=160, fov=90, world_y=0.88, fixed_offset=0.0, device='cuda'):
         self._w = w
         self._h = h
         self._img_size = torch.FloatTensor([w,h]).to(device)
@@ -182,7 +182,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
     iterator = enumerate(iterator_tqdm)
 
     total_loss = list()
-    images_list = list()
+    # images_list = list()
 
     for i, (rgb_image_left, rgb_image_right, birdview, location, command, speed) in iterator:
         birdview = np.delete(birdview, [2], axis=1)
@@ -191,15 +191,17 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
         birdview = birdview.to(config['device'])
         command = one_hot(command).to(config['device'])
         speed = speed.to(config['device'])
+        location = location.to(config['device'])
         
-        with torch.no_grad():
-            _teac_location = teacher_net(birdview, speed, command)
+        # with torch.no_grad():
+        #     _teac_location = teacher_net(birdview, speed, command)
         
         _pred_location = net(rgb_image_left, rgb_image_right, speed, command)
+        location = location / (0.5 * CROP_SIZE) - 1.0
         pred_location = (_pred_location + 1) * coord_converter._img_size/2
-        teac_location = coord_converter(_teac_location)
+        # teac_location = coord_converter(_teac_location)
         
-        loss = criterion(_pred_location, teac_location)
+        loss = criterion(_pred_location, location)
         loss_mean = loss.mean()
 
         if is_train and not is_first_epoch:
@@ -207,17 +209,17 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
             loss_mean.backward()
             optim.step()
 
-        images = _preprocess_image(_log_visuals(rgb_image_right, birdview, speed, command, loss,
-                pred_location, teac_location, _teac_location))
+        # images = _preprocess_image(_log_visuals(rgb_image_right, birdview, speed, command, loss,
+        #         pred_location, teac_location, _teac_location))
 
-        images_list.append(images)
+        # images_list.append(images)
 
 
         if is_first_epoch and i == 10:
             iterator_tqdm.close()
             break
         total_loss.append(loss_mean.item())
-    return sum(total_loss)/len(total_loss), images_list
+    return sum(total_loss)/len(total_loss) #, images_list
 
 
 
@@ -256,14 +258,14 @@ def train(config):
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
     for epoch in tqdm.tqdm(range((checkpoint)+1, config['max_epoch']+1), desc='Epoch'):
-        train_loss, train_images = train_or_eval(coord_converter, criterion, net, teacher_net, data_train, optim, True, config, epoch == 0)
-        val_loss, val_images = train_or_eval(coord_converter, criterion, net, teacher_net, data_val, None, False, config, epoch == 0)
+        train_loss = train_or_eval(coord_converter, criterion, net, teacher_net, data_train, optim, True, config, epoch == 0)
+        val_loss = train_or_eval(coord_converter, criterion, net, teacher_net, data_val, None, False, config, epoch == 0)
 
         writer = SummaryWriter(str(Path(config['log_dir']) / ("runs") / (config['folder_name'])))
         writer.add_scalar('Loss/train', train_loss, epoch)
         writer.add_scalar('Loss/val', val_loss, epoch)
-        writer.add_image('Image/train', train_images[-1], epoch)
-        writer.add_image('Image/val', val_images[-1], epoch)
+        # writer.add_image('Image/train', train_images[-1], epoch)
+        # writer.add_image('Image/val', val_images[-1], epoch)
 
         if epoch in SAVE_EPOCHS:
             torch.save(
@@ -275,7 +277,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_dir', default='/home/moonlab/Documents/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
-    parser.add_argument('--max_epoch', default=2)
+    parser.add_argument('--max_epoch', default=1000)
     parser.add_argument('--folder_name', required=True)
 
     # Model
@@ -286,10 +288,10 @@ if __name__ == '__main__':
     parser.add_argument('--teacher_path', default="/home/moonlab/Documents/LearningByCheating/ckpts/priveleged/model-128.th")
     parser.add_argument('--teacher_backbone', default='resnet18')
     
-    parser.add_argument('--fixed_offset', type=float, default=3.5)
+    parser.add_argument('--fixed_offset', type=float, default=0.0)
 
     # Dataset.
-    parser.add_argument('--dataset_dir', default='/media/storage/karthik/dataset_384_160')
+    parser.add_argument('--dataset_dir', default='/home/moonlab/Documents/LearningByCheating/dataset')
     parser.add_argument('--batch_size', type=int, default=96)
     parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default=None)
     parser.add_argument('--resume', action='store_true')
