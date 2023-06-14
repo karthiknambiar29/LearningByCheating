@@ -30,7 +30,7 @@ CROP_SIZE = 320
 MAP_SIZE=320
 config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
             'teacher_args' : {
-                'model_path': '/home/moonlab/Documents/LearningByCheating/training/birdview_new/model-206.th',
+                'model_path': '/home/moonlab/Documents/LearningByCheating/training/birdview_stork/model-603.th',
                 },
             'image_args' : {
                 'model_path': '/home/moonlab/Documents/karthik/LearningByCheating/model-249.th',
@@ -115,7 +115,7 @@ def crop_birdview(birdview, dx=0, dy=0):
     return birdview
 import sys
 args = YamlConfig.from_nested_dicts(load_config('config/hound_config.yaml'))
-env = lmdb.open('/home/moonlab/Documents/LearningByCheating/dataset/train/{}'.format(sys.argv[1]))
+env = lmdb.open('/home/moonlab/Documents/LearningByCheating/dataset/val/{}'.format(sys.argv[1]))
 pygame.init()
 pygame.font.init()
 display = pygame.display.set_mode(

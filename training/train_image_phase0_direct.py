@@ -295,6 +295,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=96)
     parser.add_argument('--augment', choices=['None', 'medium', 'medium_harder', 'super_hard'], default=None)
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--cmd-biased', action='store_true', default=False)
     
     # Optimizer.
     parser.add_argument('--lr', type=float, default=1e-4)
@@ -317,6 +318,7 @@ if __name__ == '__main__':
                 'gap': GAP,
                 'augment': parsed.augment,
                 'num_workers': 8,
+                'cmd_biased': parsed.cmd_biased
                 },
             'model_args': {
                 'model': 'image_ss',
