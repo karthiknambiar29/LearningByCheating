@@ -78,7 +78,7 @@ class LocalPlanner(object):
         self._offset = 0
         self._base_min_distance = 3.0
         self._follow_speed_limits = False
-
+        self.command = RoadOption.LANEFOLLOW
         # Overload parameters
         if opt_dict:
             if 'dt' in opt_dict:
@@ -226,8 +226,8 @@ class LocalPlanner(object):
         self._min_distance = self._base_min_distance + 0.5 *vehicle_speed
 
         num_waypoint_removed = 0
-        for waypoint, _ in self._waypoints_queue:
-
+        for waypoint, command in self._waypoints_queue:
+            self.command = command
             if len(self._waypoints_queue) - num_waypoint_removed == 1:
                 min_distance = 1  # Don't remove the last waypoint until very close by
             else:

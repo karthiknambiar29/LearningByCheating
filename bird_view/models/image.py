@@ -11,6 +11,7 @@ from .controller import CustomController, PIDController
 from .controller import ls_circle
 
 
+
 CROP_SIZE = 192
 STEPS = 5
 COMMANDS = 4
@@ -95,12 +96,14 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
 
 
 class ImageAgent(Agent):
-    def __init__(self, steer_points=None, pid=None, gap=5, camera_args={'x':384,'h':160,'fov':90,'world_y':1.4,'fixed_offset':4.0}, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, vehicle, model,  steer_points=None, opt_dict={}, pid=None, gap=5, camera_args={'x':384,'h':160,'fov':90,'world_y':1.4,'fixed_offset':0.0}, **kwargs):
+        super().__init__(vehicle, model)
+
+        
 
         self.fixed_offset = float(camera_args['fixed_offset'])
         print ("Offset: ", self.fixed_offset)
-        w = float(camera_args['w'])
+        w = float(camera_args['x'])
         h = float(camera_args['h'])
         self.img_size = np.array([w,h])
         self.gap = gap
@@ -110,35 +113,48 @@ class ImageAgent(Agent):
 
         if pid is None:
             pid = {
-                "1" : {"Kp": 0.5, "Ki": 0.20, "Kd":0.0}, # Left
-                "2" : {"Kp": 0.7, "Ki": 0.10, "Kd":0.0}, # Right
+                "1" : {"Kp": 1.0, "Ki": 0.10, "Kd":0.0}, # Left
+                "2" : {"Kp": 1.0, "Ki": 0.10, "Kd":0.0}, # Right
                 "3" : {"Kp": 1.0, "Ki": 0.10, "Kd":0.0}, # Straight
-                "4" : {"Kp": 1.0, "Ki": 0.50, "Kd":0.0}, # Follow
+                "4" : {"Kp": 1.0, "Ki": 0.10, "Kd":0.0}, # Follow
             }
+        # if pid is None:
+        #     pid = {
+        #         "1" : {"Kp": 0.5, "Ki": 0.20, "Kd":0.0}, # Left
+        #         "2" : {"Kp": 0.7, "Ki": 0.10, "Kd":0.0}, # Right
+        #         "3" : {"Kp": 1.0, "Ki": 0.10, "Kd":0.0}, # Straight
+        #         "4" : {"Kp": 1.0, "Ki": 0.50, "Kd":0.0}, # Follow
+        #     }
 
         self.steer_points = steer_points
         self.turn_control = CustomController(pid)
         self.speed_control = PIDController(K_P=.8, K_I=.08, K_D=0.)
         
-        self.engine_brake_threshold = 2.0
-        self.brake_threshold = 2.0
+        self.engine_brake_threshold = 0.0
+        self.brake_threshold = 0.0
         
         self.last_brake = -1
 
+
+
     def run_step(self, observations, teaching=False):
-        rgb = observations['rgb'].copy()
+        rgb_left = observations['rgb_left'].copy()
+        rgb_right = observations['rgb_right'].copy()
         speed = np.linalg.norm(observations['velocity'])
-        _cmd = int(observations['command'])
-        command = self.one_hot[int(observations['command']) - 1]
+        _cmd = int(self._local_planner.command.value)
+        command = self.one_hot[int(_cmd) - 1]
+        # _cmd = int(observations['command'])
+        # command = self.one_hot[int(observations['command']) - 1]
 
         with torch.no_grad():
-            _rgb = self.transform(rgb).to(self.device).unsqueeze(0)
+            _rgb_left = self.transform(rgb_left).to(self.device).unsqueeze(0)
+            _rgb_right = self.transform(rgb_right).to(self.device).unsqueeze(0)
             _speed = torch.FloatTensor([speed]).to(self.device)
             _command = command.to(self.device).unsqueeze(0)
             if self.model.all_branch:
-                model_pred, _ = self.model(_rgb, _speed, _command)
+                model_pred, _ = self.model(_rgb_left, _rgb_right, _speed, _command)
             else:
-                model_pred = self.model(_rgb, _speed, _command)
+                model_pred = self.model(_rgb_left, _rgb_right, _speed, _command)
 
         model_pred = model_pred.squeeze().detach().cpu().numpy()
         
@@ -161,12 +177,14 @@ class ImageAgent(Agent):
         targets = np.array(targets)
 
         target_speed = np.linalg.norm(targets[:-1] - targets[1:], axis=1).mean() / (self.gap * DT)
+        print('target speed', target_speed)
         
         c, r = ls_circle(targets)
         n = self.steer_points.get(str(_cmd), 1)
         closest = common.project_point_to_circle(targets[n], c, r)
         
         acceleration = target_speed - speed
+        print('acceleration', acceleration)
 
         v = [1.0, 0.0, 0.0]
         w = [closest[0], closest[1], 0.0]
@@ -174,6 +192,8 @@ class ImageAgent(Agent):
 
         steer = self.turn_control.run_step(alpha, _cmd)
         throttle = self.speed_control.step(acceleration)
+        print('throttle', throttle)
+        print(steer)
         brake = 0.0
 
         # Slow or stop.
@@ -197,9 +217,9 @@ class ImageAgent(Agent):
         if teaching:
             return control, pixel_pred
         else:
-            return control
+            return control, model_pred, world_pred
 
-    def unproject(self, output, world_y=1.4, fov=90):
+    def unproject(self, output, world_y=0.88, fov=90):
 
         cx, cy = self.img_size / 2
         
