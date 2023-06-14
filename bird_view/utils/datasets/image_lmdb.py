@@ -15,7 +15,7 @@ import random
 
 import augmenter
 
-PIXEL_OFFSET = 10
+PIXEL_OFFSET = 0
 PIXELS_PER_METER = 5
     
 def world_to_pixel(x,y,ox,oy,ori_ox, ori_oy, offset=(-80,160), size=320, angle_jitter=15):

@@ -163,8 +163,9 @@ with env.begin() as txn:
         n_step = 5
         ox, oy, oz, ori_ox, ori_oy  = measurement[:5]
         gt_loc = []
-        dt = 0
-        while dt < 25 :
+        # dt = 0
+        # while dt < 25 :
+        for dt in range(5, 5*6, 5):
             index = i + dt
             f_measurement = np.frombuffer(txn.get(("measurements_%04d"%index).encode()), np.float32)
             x, y, z, ori_x, ori_y = f_measurement[:5]
@@ -173,7 +174,7 @@ with env.begin() as txn:
             pixel_y = 192 - (320-pixel_y)+70
             # gt_loc.append([pixel_x, pixel_y])
             pygame.draw.rect(display, BLUE, pygame.Rect(pixel_x+384, pixel_y, 3, 3))
-            dt +=5
+            # dt +=5
             gt_loc.append(np.array([pixel_x, pixel_y])/(0.5*192) - 1.0)
         gt_location = coord_converter(gt_loc)
         
