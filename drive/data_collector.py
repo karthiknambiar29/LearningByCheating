@@ -521,6 +521,7 @@ def game_loop(args):
             else:
                 sim_world.wait_for_tick()
             progress = tqdm.tqdm(range(args.frames_per_episode), desc='Frame')
+            cmd_not_straight = False
             while len(data) < args.frames_per_episode:
                 if args.sync:
                     sim_world.tick()
@@ -536,6 +537,7 @@ def game_loop(args):
                         print("The target has been reached, stopping the simulation")
                         break
                 observations = world.get_observations(agent)
+                print(observations['command'])
                 control = agent.run_step()
                 control.manual_gear_shift = False
                 world.player.apply_control(control)
