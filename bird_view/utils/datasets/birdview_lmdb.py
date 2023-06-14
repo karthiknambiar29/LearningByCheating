@@ -15,7 +15,7 @@ from utils.carla_utils import visualize_birdview
 import math
 import random
 
-PIXEL_OFFSET = 10
+PIXEL_OFFSET = 0
 
 
 def world_to_pixel(

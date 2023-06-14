@@ -199,7 +199,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
         _pred_location = net(rgb_image_left, rgb_image_right, speed, command)
         location = location / (0.5 * CROP_SIZE) - 1.0
         pred_location = (_pred_location + 1) * coord_converter._img_size/2
-        # teac_location = coord_converter(_teac_location)
+        location = coord_converter(location)
         
         loss = criterion(_pred_location, location)
         loss_mean = loss.mean()

@@ -30,7 +30,7 @@ CROP_SIZE = 320
 MAP_SIZE=320
 config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
             'teacher_args' : {
-                'model_path': '/home/moonlab/Documents/LearningByCheating/training/birdview_new/model-169.th',
+                'model_path': '/home/moonlab/Documents/LearningByCheating/training/birdview_new/model-206.th',
                 },
             'image_args' : {
                 'model_path': '/home/moonlab/Documents/karthik/LearningByCheating/model-249.th',
