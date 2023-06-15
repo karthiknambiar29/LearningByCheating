@@ -522,6 +522,7 @@ def game_loop(args):
                 sim_world.wait_for_tick()
             progress = tqdm.tqdm(range(args.frames_per_episode), desc='Frame')
             Flag = False
+            counter = 0
             while len(data) < args.frames_per_episode:
                 if args.sync:
                     sim_world.tick()
@@ -536,21 +537,30 @@ def game_loop(args):
                     else:
                         print("The target has been reached, stopping the simulation")
                         break
+                # if not Flag:
                 observations = world.get_observations(agent)
+                print(observations['command'])
                 if observations['command'] == RoadOption.STRAIGHT or observations['command'] == RoadOption.RIGHT or observations['command'] == RoadOption.LEFT:
                     Flag = True
-                    processed = process(observations)
-                    data.append(processed)
-                    progress.update(1)
-                    pass
-                else: 
-                    print(observations['command'])
-                    control = agent.run_step()
-                    control.manual_gear_shift = False
-                    world.player.apply_control(control)
-                    processed = process(observations)
-                    data.append(processed)
-                    progress.update(1)
+
+                # if Flag:
+                #     observations = world.get_observations(agent)
+                #     if observations['command'] != RoadOption.STRAIGHT or observations['command'] != RoadOption.RIGHT or observations['command'] != RoadOption.LEFT:
+                #         Flag = False
+                if Flag:
+                    if observations['command'] == RoadOption.STRAIGHT or observations['command'] == RoadOption.RIGHT or observations['command'] == RoadOption.LEFT:
+                        processed = process(observations)
+                        data.append(processed)
+                        progress.update(1)
+                    else:
+                        counter += 1
+                if counter > 60:
+                    break
+                    
+                control = agent.run_step()
+                control.manual_gear_shift = False
+                world.player.apply_control(control)
+                    
             progress.close()
             if original_settings:
                 sim_world.apply_settings(original_settings)
