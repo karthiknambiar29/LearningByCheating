@@ -25,6 +25,8 @@ training/birdview_new
 training/birdview_stork
 training/image_direct
 training/image_direct_biased
+training/image_direct_biased_iitj
+training/image_direct_unbiased_iitj
 ckpts
 # C extensions
 *.so
