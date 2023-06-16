@@ -475,7 +475,7 @@ def game_loop(args):
         for i in tqdm.tqdm(range(0, args.n_episodes), desc='Episode'):
             data = list()
             print('%03d' % i)
-            filepath = save_dir.joinpath('%03d' % i)
+            filepath = save_dir.joinpath('%03d' % int(i+77))
             if filepath.exists():
                 continue
             client = carla.Client(args.host, args.port)
@@ -553,9 +553,13 @@ def game_loop(args):
                         data.append(processed)
                         progress.update(1)
                     else:
+                        processed = process(observations)
+                        data.append(processed)
+                        progress.update(1)
                         counter += 1
                 if counter > 60:
-                    break
+                    break                  
+                    
                     
                 control = agent.run_step()
                 control.manual_gear_shift = False

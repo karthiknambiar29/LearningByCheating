@@ -8,7 +8,7 @@ import glob
 from data_util import YamlConfig, load_config,visualize_birdview, get_birdview
 from carla import ColorConverter as cc
 from pygame.locals import Color
-
+import time
 try:
     sys.path.append(glob.glob('../PythonAPI')[0])
     sys.path.append(glob.glob('../bird_view')[0])
@@ -114,7 +114,7 @@ def crop_birdview(birdview, dx=0, dy=0):
     return birdview
 import sys
 args = YamlConfig.from_nested_dicts(load_config('config/hound_config.yaml'))
-env = lmdb.open('/home/moonlab/Documents/LearningByCheating/dataset/train/{}'.format(sys.argv[1]))
+env = lmdb.open('/home/moonlab/Documents/LearningByCheating/dataset_2/{}'.format(sys.argv[1]))
 pygame.init()
 pygame.font.init()
 display = pygame.display.set_mode(
@@ -177,4 +177,5 @@ with env.begin() as txn:
         #     pygame.draw.rect(display, BLUE, pygame.Rect(x, y, 3, 3))
 
             pygame.display.update()
+        time.sleep(0.1)
     pygame.quit()

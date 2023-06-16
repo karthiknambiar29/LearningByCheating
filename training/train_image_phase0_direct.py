@@ -237,7 +237,7 @@ def train(config):
 
     if config['resume']:
         log_dir = str(Path(config['log_dir']) / ((config['folder_name'])))
-        checkpoints = list(log_dir.glob('model-*.th'))
+        checkpoints = list(glob.glob(log_dir + '/model-*.th'))
         checkpoints = sorted(checkpoints, key=lambda x:int(str(x).split('-')[-1].split('.')[0]))
         checkpoint = str(checkpoints[-1])
         print ("load %s"%checkpoint)
