@@ -139,7 +139,7 @@ def process(observations):
         observations['control'].brake,
         observations['control'].manual_gear_shift,
         observations['control'].gear,
-        # observations['traffic_light']
+        observations['traffic_light']
         ]
     measurements = [x if isinstance(x, np.ndarray) else np.float32([x]) for x in measurements]
     measurements = np.concatenate(measurements, 0)

@@ -17,6 +17,8 @@ python_api.md
 # Byte-compiled / optimized / DLL files
 __pycache__/
 dataset
+dataset_2
+dataset_3
 *.py[cod]
 carla_14
 dataset_384_160
@@ -25,6 +27,8 @@ training/birdview_new
 training/birdview_stork
 training/image_direct
 training/image_direct_biased
+training/image_direct_biased_iitj
+training/image_direct_unbiased_iitj
 ckpts
 # C extensions
 *.so
