@@ -30,7 +30,7 @@ width: 1024
 height: 320
 loop: false
 sync: True
-town: Town01
+town: Town02
 
 # Traffic Config
 
@@ -47,7 +47,7 @@ car_lights_on: True
 
 # Dataset Config
 frames_per_episode: 1000
-n_episodes: 200
-dataset_path: /home/moonlab/Documents/LearningByCheating/dataset_3
+n_episodes: 800
+dataset_path: /home/moonlab/Documents/LearningByCheating/dataset_2
 behaviour: normal
 model_path: /home/moonlab/Documents/LearningByCheating/training/image_direct/model-160.th
