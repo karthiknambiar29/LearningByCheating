@@ -182,7 +182,7 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
     iterator = enumerate(iterator_tqdm)
 
     total_loss = list()
-    images_list = list()
+    # images_list = list()
 
     for i, (rgb_image_left, rgb_image_right, birdview, location, command, speed) in iterator:
         birdview = np.delete(birdview, [2], axis=1)
@@ -207,17 +207,17 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
             loss_mean.backward()
             optim.step()
 
-        images = _preprocess_image(_log_visuals(rgb_image_right, birdview, speed, command, loss,
-                pred_location, teac_location, _teac_location))
+        # images = _preprocess_image(_log_visuals(rgb_image_right, birdview, speed, command, loss,
+        #         pred_location, teac_location, _teac_location))
 
-        images_list.append(images)
+        # images_list.append(images)
 
 
         if is_first_epoch and i == 10:
             iterator_tqdm.close()
             break
         total_loss.append(loss_mean.item())
-    return sum(total_loss)/len(total_loss), images_list
+    return sum(total_loss)/len(total_loss)##, images_list
 
 
 
@@ -255,15 +255,15 @@ def train(config):
     
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
-    for epoch in tqdm.tqdm(range((checkpoint)+1, config['max_epoch']+1), desc='Epoch'):
-        train_loss, train_images = train_or_eval(coord_converter, criterion, net, teacher_net, data_train, optim, True, config, epoch == 0)
-        val_loss, val_images = train_or_eval(coord_converter, criterion, net, teacher_net, data_val, None, False, config, epoch == 0)
+    for epoch in tqdm.tqdm(range((checkpoint)+1, int(config['max_epoch'])+1), desc='Epoch'):
+        train_loss = train_or_eval(coord_converter, criterion, net, teacher_net, data_train, optim, True, config, epoch == 0)
+        val_loss = train_or_eval(coord_converter, criterion, net, teacher_net, data_val, None, False, config, epoch == 0)
 
         writer = SummaryWriter(str(Path(config['log_dir']) / ("runs") / (config['folder_name'])))
         writer.add_scalar('Loss/train', train_loss, epoch)
         writer.add_scalar('Loss/val', val_loss, epoch)
-        writer.add_image('Image/train', train_images[-1], epoch)
-        writer.add_image('Image/val', val_images[-1], epoch)
+        # writer.add_image('Image/train', train_images[-1], epoch)
+        # writer.add_image('Image/val', val_images[-1], epoch)
 
         if epoch in SAVE_EPOCHS:
             torch.save(
@@ -275,9 +275,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_dir', default='/home/moonlab/Documents/LearningByCheating/training')
     parser.add_argument('--log_iterations', default=1000)
-    parser.add_argument('--max_epoch', default=2)
+    parser.add_argument('--max_epoch', default=1000)
     parser.add_argument('--folder_name', required=True)
-
+    parser.add_argument('--cmd-biased', action='store_true')
     # Model
     parser.add_argument('--imagenet_pretrained', action='store_true')
     parser.add_argument('--pretrained', action='store_true')
@@ -315,6 +315,7 @@ if __name__ == '__main__':
                 'gap': GAP,
                 'augment': parsed.augment,
                 'num_workers': 8,
+                'cmd_biased': parsed.cmd_biased,
                 },
             'model_args': {
                 'model': 'image_ss',
