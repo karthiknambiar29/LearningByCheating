@@ -474,8 +474,8 @@ def game_loop(args):
         print(args.n_episodes)
         for i in tqdm.tqdm(range(0, args.n_episodes), desc='Episode'):
             data = list()
-            print('%03d' % i)
-            filepath = save_dir.joinpath('%03d' % int(i+77))
+            print('%04d' % i)
+            filepath = save_dir.joinpath('%04d' % int(i+1000))
             if filepath.exists():
                 continue
             client = carla.Client(args.host, args.port)

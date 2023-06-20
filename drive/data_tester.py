@@ -113,69 +113,134 @@ def crop_birdview(birdview, dx=0, dy=0):
 
     return birdview
 import sys
+import os
 args = YamlConfig.from_nested_dicts(load_config('config/hound_config.yaml'))
-env = lmdb.open('/home/moonlab/Documents/LearningByCheating/dataset_2/{}'.format(sys.argv[1]))
+# env = lmdb.open('/home/moonlab/Documents/LearningByCheating/dataset_2/{}'.format(sys.argv[1]))
 pygame.init()
 pygame.font.init()
 display = pygame.display.set_mode(
                     (args.width, args.height),
                     pygame.HWSURFACE | pygame.DOUBLEBUF)
 display.fill((0,0,0))
-with env.begin() as txn:
-    length = int(txn.get(str('len').encode()))
-    for i in range(length-25):
-        rgb_left = np.fromstring(txn.get(('rgb_left_%04d'%i).encode()), np.uint8).reshape(160,384,3)
-        rgb_right = np.fromstring(txn.get(('rgb_right_%04d'%i).encode()), np.uint8).reshape(160,384,3)
-        bird_view = np.fromstring(txn.get(('birdview_%04d'%i).encode()), np.uint8).reshape(320,320,8)
-        # removing traffic channels
-        bird_view = np.delete(bird_view, [2], axis=-1)
-        measurement = np.frombuffer(txn.get(('measurements_%04d'%i).encode()), np.float32)
-        display.blit(pygame.surfarray.make_surface(rgb_left.swapaxes(0, 1)), (0, 0))
-        display.blit(pygame.surfarray.make_surface(rgb_right.swapaxes(0, 1)), (0, 160))
-        display.blit(pygame.surfarray.make_surface(np.zeros((320, 320))), (704, 0))
-        birdview = crop_birdview(bird_view)
-        bird_view = visualize_birdview(birdview)
-        display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (384, 0))
-        ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic_light  = measurement
+for x in sorted(os.walk('/home/moonlab/Desktop/karthik/LearningByCheating/dataset_2/')):
+    if x[0] == '/home/moonlab/Desktop/karthik/LearningByCheating/dataset_2/':
+        continue
+    env = lmdb.open(x[0])
+    print(x[0])
+    with env.begin() as txn:
+        length = int(txn.get(str('len').encode()))
+        for i in range(length-25):
+            rgb_left = np.fromstring(txn.get(('rgb_left_%04d'%i).encode()), np.uint8).reshape(160,384,3)
+            rgb_right = np.fromstring(txn.get(('rgb_right_%04d'%i).encode()), np.uint8).reshape(160,384,3)
+            bird_view = np.fromstring(txn.get(('birdview_%04d'%i).encode()), np.uint8).reshape(320,320,8)
+            # removing traffic channels
+            bird_view = np.delete(bird_view, [2], axis=-1)
+            measurement = np.frombuffer(txn.get(('measurements_%04d'%i).encode()), np.float32)
+            display.blit(pygame.surfarray.make_surface(rgb_left.swapaxes(0, 1)), (0, 0))
+            display.blit(pygame.surfarray.make_surface(rgb_right.swapaxes(0, 1)), (0, 160))
+            display.blit(pygame.surfarray.make_surface(np.zeros((320, 320))), (704, 0))
+            birdview = crop_birdview(bird_view)
+            bird_view = visualize_birdview(birdview)
+            display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (384, 0))
+            ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic_light  = measurement
+            
+            #birdview
+            birdview = np.reshape(birdview, (192, 192, 7))
+            birdview = birdview_transform(birdview)
+            birdview = birdview[None, :].to(config['device'])
+            # rgb_left = birdview_transform(rgb_left)
+            # rgb_right = birdview_transform(rgb_right)
+            # rgb_left = rgb_left[None, :].to(config['device'])
+            # rgb_right = rgb_right[None, :].to(config['device'])
+            command = one_hot(torch.Tensor([cmd])).to(config['device'])
+            speed = np.sqrt(vx**2 + vy**2+vz**2)
+            speed = torch.Tensor([float(speed)]).to(config['device'])
+            # with torch.no_grad():
+            #     _teac_locations = teacher_net(birdview, speed, command)
+            # coord_converter = CoordConverter()
+            # _teac_locations = _teac_locations.squeeze().detach().cpu().numpy()
+            # for x, y in (_teac_locations+1) * (0.5*192):
+            #     pygame.draw.rect(display, RED, pygame.Rect(int(x+384), int(y), 3, 3))
+
+            gap = 5
+            n_step = 5
+            ox, oy, oz, ori_ox, ori_oy  = measurement[:5]
+            gt_loc = []
+            dt = 0
+            while dt < 25 :
+                index = i + dt
+                f_measurement = np.frombuffer(txn.get(("measurements_%04d"%index).encode()), np.float32)
+                x, y, z, ori_x, ori_y = f_measurement[:5]
+                pixel_y, pixel_x = world_to_pixel(x,y,ox,oy,ori_ox,ori_oy)
+                pixel_x = pixel_x - (320-192)//2
+                pixel_y = 192 - (320-pixel_y)+70
+                gt_loc.append([pixel_x, pixel_y])
+                pygame.draw.rect(display, BLUE, pygame.Rect(pixel_x+384, pixel_y, 3, 3))
+                dt +=5
+            # location = coord_converter(_teac_locations)
+            # for x, y in location[0]:
+            #     pygame.draw.rect(display, BLUE, pygame.Rect(x, y, 3, 3))
+
+                pygame.display.update()
+            time.sleep(0.05)
+pygame.quit()
+
+
+# with env.begin() as txn:
+#     length = int(txn.get(str('len').encode()))
+#     for i in range(length-25):
+#         rgb_left = np.fromstring(txn.get(('rgb_left_%04d'%i).encode()), np.uint8).reshape(160,384,3)
+#         rgb_right = np.fromstring(txn.get(('rgb_right_%04d'%i).encode()), np.uint8).reshape(160,384,3)
+#         bird_view = np.fromstring(txn.get(('birdview_%04d'%i).encode()), np.uint8).reshape(320,320,8)
+#         # removing traffic channels
+#         bird_view = np.delete(bird_view, [2], axis=-1)
+#         measurement = np.frombuffer(txn.get(('measurements_%04d'%i).encode()), np.float32)
+#         display.blit(pygame.surfarray.make_surface(rgb_left.swapaxes(0, 1)), (0, 0))
+#         display.blit(pygame.surfarray.make_surface(rgb_right.swapaxes(0, 1)), (0, 160))
+#         display.blit(pygame.surfarray.make_surface(np.zeros((320, 320))), (704, 0))
+#         birdview = crop_birdview(bird_view)
+#         bird_view = visualize_birdview(birdview)
+#         display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (384, 0))
+#         ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic_light  = measurement
         
-        #birdview
-        birdview = np.reshape(birdview, (192, 192, 7))
-        birdview = birdview_transform(birdview)
-        birdview = birdview[None, :].to(config['device'])
-        # rgb_left = birdview_transform(rgb_left)
-        # rgb_right = birdview_transform(rgb_right)
-        # rgb_left = rgb_left[None, :].to(config['device'])
-        # rgb_right = rgb_right[None, :].to(config['device'])
-        command = one_hot(torch.Tensor([cmd])).to(config['device'])
-        speed = np.sqrt(vx**2 + vy**2+vz**2)
-        print(float(speed)*18/5)
-        speed = torch.Tensor([float(speed)]).to(config['device'])
-        # with torch.no_grad():
-        #     _teac_locations = teacher_net(birdview, speed, command)
-        # coord_converter = CoordConverter()
-        # _teac_locations = _teac_locations.squeeze().detach().cpu().numpy()
-        # for x, y in (_teac_locations+1) * (0.5*192):
-        #     pygame.draw.rect(display, RED, pygame.Rect(int(x+384), int(y), 3, 3))
+#         #birdview
+#         birdview = np.reshape(birdview, (192, 192, 7))
+#         birdview = birdview_transform(birdview)
+#         birdview = birdview[None, :].to(config['device'])
+#         # rgb_left = birdview_transform(rgb_left)
+#         # rgb_right = birdview_transform(rgb_right)
+#         # rgb_left = rgb_left[None, :].to(config['device'])
+#         # rgb_right = rgb_right[None, :].to(config['device'])
+#         command = one_hot(torch.Tensor([cmd])).to(config['device'])
+#         speed = np.sqrt(vx**2 + vy**2+vz**2)
+#         print(float(speed)*18/5)
+#         speed = torch.Tensor([float(speed)]).to(config['device'])
+#         # with torch.no_grad():
+#         #     _teac_locations = teacher_net(birdview, speed, command)
+#         # coord_converter = CoordConverter()
+#         # _teac_locations = _teac_locations.squeeze().detach().cpu().numpy()
+#         # for x, y in (_teac_locations+1) * (0.5*192):
+#         #     pygame.draw.rect(display, RED, pygame.Rect(int(x+384), int(y), 3, 3))
 
-        gap = 5
-        n_step = 5
-        ox, oy, oz, ori_ox, ori_oy  = measurement[:5]
-        gt_loc = []
-        dt = 0
-        while dt < 25 :
-            index = i + dt
-            f_measurement = np.frombuffer(txn.get(("measurements_%04d"%index).encode()), np.float32)
-            x, y, z, ori_x, ori_y = f_measurement[:5]
-            pixel_y, pixel_x = world_to_pixel(x,y,ox,oy,ori_ox,ori_oy)
-            pixel_x = pixel_x - (320-192)//2
-            pixel_y = 192 - (320-pixel_y)+70
-            gt_loc.append([pixel_x, pixel_y])
-            pygame.draw.rect(display, BLUE, pygame.Rect(pixel_x+384, pixel_y, 3, 3))
-            dt +=5
-        # location = coord_converter(_teac_locations)
-        # for x, y in location[0]:
-        #     pygame.draw.rect(display, BLUE, pygame.Rect(x, y, 3, 3))
+#         gap = 5
+#         n_step = 5
+#         ox, oy, oz, ori_ox, ori_oy  = measurement[:5]
+#         gt_loc = []
+#         dt = 0
+#         while dt < 25 :
+#             index = i + dt
+#             f_measurement = np.frombuffer(txn.get(("measurements_%04d"%index).encode()), np.float32)
+#             x, y, z, ori_x, ori_y = f_measurement[:5]
+#             pixel_y, pixel_x = world_to_pixel(x,y,ox,oy,ori_ox,ori_oy)
+#             pixel_x = pixel_x - (320-192)//2
+#             pixel_y = 192 - (320-pixel_y)+70
+#             gt_loc.append([pixel_x, pixel_y])
+#             pygame.draw.rect(display, BLUE, pygame.Rect(pixel_x+384, pixel_y, 3, 3))
+#             dt +=5
+#         # location = coord_converter(_teac_locations)
+#         # for x, y in location[0]:
+#         #     pygame.draw.rect(display, BLUE, pygame.Rect(x, y, 3, 3))
 
-            pygame.display.update()
-        time.sleep(0.1)
-    pygame.quit()
+#             pygame.display.update()
+#         time.sleep(0.1)
+# pygame.quit()
