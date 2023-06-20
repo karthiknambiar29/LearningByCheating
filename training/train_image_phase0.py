@@ -255,7 +255,7 @@ def train(config):
     
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
-    for epoch in tqdm.tqdm(range((checkpoint)+1, config['max_epoch']+1), desc='Epoch'):
+    for epoch in tqdm.tqdm(range((checkpoint)+1, int(config['max_epoch'])+1), desc='Epoch'):
         train_loss, train_images = train_or_eval(coord_converter, criterion, net, teacher_net, data_train, optim, True, config, epoch == 0)
         val_loss, val_images = train_or_eval(coord_converter, criterion, net, teacher_net, data_val, None, False, config, epoch == 0)
 
@@ -277,7 +277,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_iterations', default=1000)
     parser.add_argument('--max_epoch', default=2)
     parser.add_argument('--folder_name', required=True)
-
+    parser.add_argument('--cmd-biased', action='store_true')
     # Model
     parser.add_argument('--imagenet_pretrained', action='store_true')
     parser.add_argument('--pretrained', action='store_true')
@@ -315,6 +315,7 @@ if __name__ == '__main__':
                 'gap': GAP,
                 'augment': parsed.augment,
                 'num_workers': 8,
+                'cmd_biased': parsed.cmd_biased,
                 },
             'model_args': {
                 'model': 'image_ss',
