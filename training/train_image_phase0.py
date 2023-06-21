@@ -55,7 +55,7 @@ def _preprocess_image(x):
     return x
 
 class CoordConverter():
-    def __init__(self, w=384, h=160, fov=90, world_y=0.88, fixed_offset=3.5, device='cuda'):
+    def __init__(self, w=384, h=160, fov=90, world_y=0.88, fixed_offset=0.0, device='cuda'):
         self._w = w
         self._h = h
         self._img_size = torch.FloatTensor([w,h]).to(device)
@@ -286,7 +286,7 @@ if __name__ == '__main__':
     parser.add_argument('--teacher_path', default="/home/moonlab/Documents/LearningByCheating/ckpts/priveleged/model-128.th")
     parser.add_argument('--teacher_backbone', default='resnet18')
     
-    parser.add_argument('--fixed_offset', type=float, default=3.5)
+    parser.add_argument('--fixed_offset', type=float, default=0.0)
 
     # Dataset.
     parser.add_argument('--dataset_dir', default='/media/storage/karthik/dataset_384_160')

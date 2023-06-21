@@ -30,10 +30,10 @@ CROP_SIZE = 320
 MAP_SIZE=320
 config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
             'teacher_args' : {
-                'model_path': '/home/moonlab/Documents/LearningByCheating/training/birdview_new/model-206.th',
+                'model_path': '/home/moonlab/Documents/LearningByCheating/training/birdview_stork/model-1100.th',
                 },
             'image_args' : {
-                'model_path': '/home/moonlab/Documents/LearningByCheating/training/image_direct/model-141.th',
+                'model_path': '/home/moonlab/Documents/LearningByCheating/training/image_unbiased_kingfisher/model-117.th',
                 }
             }
 image_net = ImagePolicyModelSS(backbone='resnet34').to(config['device'])
