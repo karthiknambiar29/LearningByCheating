@@ -122,8 +122,8 @@ display = pygame.display.set_mode(
                     (args.width, args.height),
                     pygame.HWSURFACE | pygame.DOUBLEBUF)
 display.fill((0,0,0))
-for x in sorted(os.walk('/home/moonlab/Documents/LearningByCheating/dataset_2/')):
-    if x[0] == '/home/moonlab/Documents/LearningByCheating/dataset_2/':
+for x in sorted(os.walk('/home/moonlab/Desktop/karthik/LearningByCheating/dataset_2/')):
+    if x[0] == '/home/moonlab/Desktop/karthik/LearningByCheating/dataset_2/':
         continue
     env = lmdb.open(x[0])
     print(x[0])

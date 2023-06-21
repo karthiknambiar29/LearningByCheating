@@ -29,7 +29,7 @@ from torch.utils.tensorboard import SummaryWriter
 BACKBONE = 'resnet18'
 GAP = 5
 N_STEP = 5
-SAVE_EPOCHS = np.arange(1, 1000, 1)
+SAVE_EPOCHS = np.arange(1, 1500, 1)
 
 class LocationLoss(torch.nn.Module):
     def __init__(self, w=192, h=192, choice='l2'):
@@ -180,7 +180,7 @@ def train(config):
 
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
-    for epoch in tqdm.tqdm(range((checkpoint)+1, config['max_epoch']+1), desc='Epoch'):
+    for epoch in tqdm.tqdm(range((checkpoint)+1, int(config['max_epoch'])+1), desc='Epoch'):
         train_loss= train_or_eval(criterion, net, data_train, optim, True, config, epoch == 0)
         val_loss = train_or_eval(criterion, net, data_val, None, False, config, epoch == 0)
         writer = SummaryWriter(str(Path(config['log_dir']) / ("runs") / (config['folder_name'])))
