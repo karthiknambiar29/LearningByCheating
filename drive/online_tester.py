@@ -470,6 +470,9 @@ def game_loop(args):
     world = None
     original_settings = None
     synchronous_master = False
+    image_net = ImagePolicyModelSS(backbone='resnet34').to('cuda')
+    image_net.load_state_dict(torch.load(args.model_path))
+    image_net.eval()
 
     try:
         client = carla.Client(args.host, args.port)
@@ -498,12 +501,10 @@ def game_loop(args):
                 (args.width, args.height),
                 pygame.HWSURFACE | pygame.DOUBLEBUF)
         display.fill((0,0,0))
-        image_net = ImagePolicyModelSS(backbone='resnet34').to('cuda')
-        image_net.load_state_dict(torch.load(args.model_path))
-        image_net.eval()
+        
         world = World(sim_world, client, traffic_manager, synchronous_master, args)
-        agent = BehaviorAgent(world.player, behavior=args.behaviour)
-        agent1 = ImageAgent(vehicle=world.player, model=image_net)
+        # agent = BehaviorAgent(world.player, behavior=args.behaviour)
+        agent = ImageAgent(vehicle=world.player, model=image_net)
         print('x')
 
 
@@ -531,11 +532,11 @@ def game_loop(args):
                 else:
                     print("The target has been reached, stopping the simulation")
                     break
-            observations = world.get_observations(agent1)
-            control, model_pred, world_pred = agent1.run_step(observations)
-            image_control.append([control.throttle, control.steer, control.brake])
-            control1 = agent.run_step()
-            agent_control.append([control.throttle, control.steer, control.brake])
+            observations = world.get_observations(agent)
+            control, model_pred, world_pred = agent.run_step(observations)
+            # image_control.append([control.throttle, control.steer, control.brake])
+            # control = agent.run_step()
+            # agent_control.append([control.throttle, control.steer, control.brake])
             for x, y in model_pred:
                 pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y), 3, 3))
             for x, y in world_pred:
@@ -543,11 +544,11 @@ def game_loop(args):
             pygame.display.update()
             control.manual_gear_shift = False
             world.player.apply_control(control)
-            if original_settings:
-                sim_world.apply_settings(original_settings)
-        
-            # if world is not None:
-            #     world.destroy()
+        if original_settings:
+            sim_world.apply_settings(original_settings)
+    
+        # if world is not None:
+        #     world.destroy()
                  
     finally:
 
@@ -557,11 +558,11 @@ def game_loop(args):
         
         if world is not None:
             world.destroy()
-        image_control = np.array(image_control)
-        agent_control = np.array(agent_control)
-        np.save('image_control.npy', image_control)
-        np.save('agent_control.npy', agent_control)
-        print('saved')
+        # image_control = np.array(image_control)
+        # agent_control = np.array(agent_control)
+        # np.save('image_control.npy', image_control)
+        # np.save('agent_control.npy', agent_control)
+        # print('saved')
         pygame.quit()
 
 

@@ -113,10 +113,10 @@ class ImageAgent(Agent):
 
         if pid is None:
             pid = {
-                "1" : {"Kp": 1.0, "Ki": 0.10, "Kd":0.0}, # Left
-                "2" : {"Kp": 1.0, "Ki": 0.10, "Kd":0.0}, # Right
-                "3" : {"Kp": 1.0, "Ki": 0.10, "Kd":0.0}, # Straight
-                "4" : {"Kp": 1.0, "Ki": 0.10, "Kd":0.0}, # Follow
+                "1" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.0}, # Left
+                "2" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.0}, # Right
+                "3" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.0}, # Straight
+                "4" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.0}, # Follow
             }
         # if pid is None:
         #     pid = {
@@ -128,10 +128,10 @@ class ImageAgent(Agent):
 
         self.steer_points = steer_points
         self.turn_control = CustomController(pid)
-        self.speed_control = PIDController(K_P=.8, K_I=.08, K_D=0.)
+        self.speed_control = PIDController(K_P=0.2, K_I=.00, K_D=2.5)
         
-        self.engine_brake_threshold = 2.0
-        self.brake_threshold = 2.0
+        self.engine_brake_threshold = 7.0
+        self.brake_threshold = 7.0
         
         self.last_brake = -1
 
@@ -163,7 +163,7 @@ class ImageAgent(Agent):
         # Project back to world coordinate
         model_pred = (model_pred+1)*self.img_size/2
 
-        world_pred = self.unproject(model_pred)*5
+        world_pred = self.unproject(model_pred)#*5
 
         targets = [(0, 0)]
 
@@ -177,21 +177,21 @@ class ImageAgent(Agent):
         targets = np.array(targets)
 
         target_speed = np.linalg.norm(targets[:-1] - targets[1:], axis=1).mean() / (self.gap * DT)
-        
+
         c, r = ls_circle(targets)
         n = self.steer_points.get(str(_cmd), 1)
         closest = common.project_point_to_circle(targets[n], c, r)
         
         acceleration = target_speed - speed
-
+        
         v = [1.0, 0.0, 0.0]
         w = [closest[0], closest[1], 0.0]
         alpha = common.signed_angle(v, w)
 
-        steer = self.turn_control.run_step(alpha, _cmd)
+        steer = self.turn_control.run_step(alpha*3, _cmd)
         throttle = self.speed_control.step(acceleration)
         brake = 0.0
-
+        print('target_speed : ', target_speed, ' steer : ', steer, ' alpha : ', alpha)
         # Slow or stop.
         
         if target_speed <= self.engine_brake_threshold:
@@ -200,7 +200,12 @@ class ImageAgent(Agent):
         
         if target_speed <= self.brake_threshold:
             brake = 1.0
-            
+        if target_speed > 50/3:
+            throttle = 0.0
+            brake = 0.5
+        if target_speed < 7:
+            throttle = 0.0
+            brake=1.0
         self.debug = {
                 # 'curve': curve,
                 'target_speed': target_speed,
@@ -236,4 +241,4 @@ class ImageAgent(Agent):
         
         world_output = world_output.squeeze()
         
-        return world_output
+        return world_output*PIXELS_PER_METER
