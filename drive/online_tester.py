@@ -511,6 +511,8 @@ def game_loop(args):
         spawn_points = world.map.get_spawn_points()
         destination = random.choice(spawn_points).location
         agent.set_destination(destination)
+        image_control = []
+        agent_control = []
         while True:
             if args.sync:
                 sim_world.tick()
@@ -522,22 +524,22 @@ def game_loop(args):
             world.tick()
             world.render(display, agent)
             pygame.display.flip()
-            print('uu')
             if agent.done():
-                if True: #args.loop:
-                    print('x')
+                if args.loop: #args.loop:
                     agent.set_destination(random.choice(spawn_points).location)
                     print("The target has been reached, searching for another target")
                 else:
                     print("The target has been reached, stopping the simulation")
+                    break
             observations = world.get_observations(agent1)
             control, model_pred, world_pred = agent1.run_step(observations)
-            control = agent.run_step()
+            image_control.append([control.throttle, control.steer, control.brake])
+            control1 = agent.run_step()
+            agent_control.append([control.throttle, control.steer, control.brake])
             for x, y in model_pred:
                 pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y), 3, 3))
             for x, y in world_pred:
                 pygame.draw.rect(display, RED, pygame.Rect(int(x+384), int(y), 3, 3))
-            print(world_pred)
             pygame.display.update()
             control.manual_gear_shift = False
             world.player.apply_control(control)
@@ -549,12 +551,17 @@ def game_loop(args):
                  
     finally:
 
+
         if original_settings:
             sim_world.apply_settings(original_settings)
         
         if world is not None:
             world.destroy()
-        
+        image_control = np.array(image_control)
+        agent_control = np.array(agent_control)
+        np.save('image_control.npy', image_control)
+        np.save('agent_control.npy', agent_control)
+        print('saved')
         pygame.quit()
 
 

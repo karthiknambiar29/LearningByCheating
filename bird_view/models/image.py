@@ -130,8 +130,8 @@ class ImageAgent(Agent):
         self.turn_control = CustomController(pid)
         self.speed_control = PIDController(K_P=.8, K_I=.08, K_D=0.)
         
-        self.engine_brake_threshold = 0.0
-        self.brake_threshold = 0.0
+        self.engine_brake_threshold = 2.0
+        self.brake_threshold = 2.0
         
         self.last_brake = -1
 
@@ -163,7 +163,7 @@ class ImageAgent(Agent):
         # Project back to world coordinate
         model_pred = (model_pred+1)*self.img_size/2
 
-        world_pred = self.unproject(model_pred)
+        world_pred = self.unproject(model_pred)*5
 
         targets = [(0, 0)]
 
@@ -177,14 +177,12 @@ class ImageAgent(Agent):
         targets = np.array(targets)
 
         target_speed = np.linalg.norm(targets[:-1] - targets[1:], axis=1).mean() / (self.gap * DT)
-        print('target speed', target_speed)
         
         c, r = ls_circle(targets)
         n = self.steer_points.get(str(_cmd), 1)
         closest = common.project_point_to_circle(targets[n], c, r)
         
         acceleration = target_speed - speed
-        print('acceleration', acceleration)
 
         v = [1.0, 0.0, 0.0]
         w = [closest[0], closest[1], 0.0]
@@ -192,8 +190,6 @@ class ImageAgent(Agent):
 
         steer = self.turn_control.run_step(alpha, _cmd)
         throttle = self.speed_control.step(acceleration)
-        print('throttle', throttle)
-        print(steer)
         brake = 0.0
 
         # Slow or stop.
