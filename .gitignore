@@ -24,6 +24,7 @@ carla_14
 dataset_384_160
 drive/agent_control.npy
 drive/image_control.npy
+drive/pid.csv
 drive/pid_tune.ipynb
 training/birdview
 training/birdview_new

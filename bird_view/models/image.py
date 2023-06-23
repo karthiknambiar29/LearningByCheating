@@ -128,7 +128,7 @@ class ImageAgent(Agent):
 
         self.steer_points = steer_points
         self.turn_control = CustomController(pid)
-        self.speed_control = PIDController(K_P=0.2, K_I=.00, K_D=2.5)
+        self.speed_control = PIDController(K_P=1.0, K_I=.00, K_D=2.5)
         
         self.engine_brake_threshold = 7.0
         self.brake_threshold = 7.0
@@ -191,7 +191,7 @@ class ImageAgent(Agent):
         steer = self.turn_control.run_step(alpha*3, _cmd)
         throttle = self.speed_control.step(acceleration)
         brake = 0.0
-        print('target_speed : ', target_speed, ' steer : ', steer, ' alpha : ', alpha)
+        print('target_speed : ', target_speed, ' speed : ', speed,  ' steer : ', steer, ' alpha : ', alpha)
         # Slow or stop.
         
         if target_speed <= self.engine_brake_threshold:
@@ -200,9 +200,9 @@ class ImageAgent(Agent):
         
         if target_speed <= self.brake_threshold:
             brake = 1.0
-        if target_speed > 50/3:
+        if target_speed > 50/2:
             throttle = 0.0
-            brake = 0.5
+            brake = 1.0
         if target_speed < 7:
             throttle = 0.0
             brake=1.0
