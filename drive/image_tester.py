@@ -123,8 +123,30 @@ display = pygame.display.set_mode(
                     (args.width, args.height),
                     pygame.HWSURFACE | pygame.DOUBLEBUF)
 display.fill((0,0,0))
-for x in os.walk('/home/moonlab/Documents/LearningByCheating/dataset/val/'):
-    if x[0] == '/home/moonlab/Documents/LearningByCheating/dataset/val/':
+
+
+def unproject(output, world_y=0.88, fov=90):
+
+    cx, cy = np.array([384, 160]) / 2
+    
+    w, h = np.array([384, 160])
+    
+    f = w /(2 * np.tan(fov * np.pi / 360))
+    
+    xt = (output[...,0:1] - cx) / f
+    yt = (output[...,1:2] - cy) / f
+    
+    world_z = world_y / yt
+    world_x = world_z * xt
+    
+    world_output = np.stack([world_x, world_z],axis=-1)
+    
+    world_output = world_output.squeeze()
+    
+    return world_output
+
+for x in os.walk('/home/moonlab/Documents/LearningByCheating/dataset/train/'):
+    if x[0] == '/home/moonlab/Documents/LearningByCheating/dataset/train/':
         continue
     env = lmdb.open(x[0])
     with env.begin() as txn:
@@ -163,10 +185,13 @@ for x in os.walk('/home/moonlab/Documents/LearningByCheating/dataset/val/'):
             
             _teac_locations = _teac_locations.squeeze().detach().cpu().numpy()
             _image_locations = _image_locations.squeeze().detach().cpu().numpy()
+            _world_locations = unproject((_image_locations + 1)*np.array([384, 160])/2)
             # for x, y in (_teac_locations+1) * (0.5*192):
             #     pygame.draw.rect(display, RED, pygame.Rect(int(x+384), int(y), 3, 3))
             for x, y in (_image_locations+1) * (0.5*np.array([384, 160])):
                 pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y), 3, 3))
+            for x, y in _world_locations*5:
+                pygame.draw.rect(display, RED, pygame.Rect(384+80+int(x), 192-int(y), 3, 3))
 
             gap = 5
             n_step = 5
