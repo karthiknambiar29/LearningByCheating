@@ -540,7 +540,7 @@ def game_loop(args):
             for x, y in model_pred:
                 pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y), 3, 3))
             for x, y in world_pred:
-                pygame.draw.rect(display, RED, pygame.Rect(int(x+384), int(y), 3, 3))
+                pygame.draw.rect(display, RED, pygame.Rect(384+320//2+int(x), 260-int(y)-10, 3, 3))
             pygame.display.update()
             control.manual_gear_shift = False
             world.player.apply_control(control)

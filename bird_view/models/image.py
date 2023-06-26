@@ -188,7 +188,7 @@ class ImageAgent(Agent):
         w = [closest[0], closest[1], 0.0]
         alpha = common.signed_angle(v, w)
 
-        steer = self.turn_control.run_step(alpha*3, _cmd)
+        steer = self.turn_control.run_step(alpha*2.75, _cmd)
         throttle = self.speed_control.step(acceleration)
         brake = 0.0
         print('target_speed : ', target_speed, ' speed : ', speed,  ' steer : ', steer, ' alpha : ', alpha)
@@ -200,7 +200,7 @@ class ImageAgent(Agent):
         
         if target_speed <= self.brake_threshold:
             brake = 1.0
-        if target_speed > 50/2:
+        if target_speed > 50/3:
             throttle = 0.0
             brake = 1.0
         if target_speed < 7:
