@@ -38,6 +38,8 @@ training/birdview_biased_iitj
 training/birdview_unbiased_iitj
 training/image_biased_stork
 training/image_unbiased_kingfisher
+training/image_direct_biased_traffic_iitj
+training/image_direct_unbiased_traffic_iitj
 ckpts
 # C extensions
 *.so
