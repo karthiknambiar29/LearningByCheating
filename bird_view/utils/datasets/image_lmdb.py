@@ -226,7 +226,7 @@ class ImageDataset(Dataset):
             
         self.batch_read_number += 1
        
-        return rgb_images_left, rgb_images_right, bird_view, np.array(locations), cmd, speed
+        return rgb_images_left, rgb_images_right, bird_view, np.array(locations), cmd, speed, traffic
 
 class BiasedImageDataset(ImageDataset):
     def __init__(self, dataset_path, left_ratio=0.25, right_ratio=0.25, straight_ratio=0.25, **kwargs):

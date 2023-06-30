@@ -169,7 +169,7 @@ def _log_visuals(rgb_image, birdview, speed, command, loss, pred_locations, teac
 
 
 
-def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_train, config, is_first_epoch):
+def train_or_eval(coord_converter, criterion, net, data, optim, is_train, config, is_first_epoch):
     if is_train:
         desc = 'Train'
         net.train()
@@ -184,21 +184,22 @@ def train_or_eval(coord_converter, criterion, net, teacher_net, data, optim, is_
     total_loss = list()
     # images_list = list()
 
-    for i, (rgb_image_left, rgb_image_right, birdview, location, command, speed) in iterator:
-        birdview = np.delete(birdview, [2], axis=1)
+    for i, (rgb_image_left, rgb_image_right, birdview, location, command, speed, traffic) in iterator:
+        # birdview = np.delete(birdview, [2], axis=1)
         rgb_image_left = rgb_image_left.to(config['device'])
         rgb_image_right = rgb_image_right.to(config['device'])
-        birdview = birdview.to(config['device'])
+        # birdview = birdview.to(config['device'])
         command = one_hot(command).to(config['device'])
+        traffic = traffic.to(config['device'])
         speed = speed.to(config['device'])
         location = location.to(config['device'])
         
         # with torch.no_grad():
         #     _teac_location = teacher_net(birdview, speed, command)
         
-        _pred_location = net(rgb_image_left, rgb_image_right, speed, command)
+        _pred_location = net(rgb_image_left, rgb_image_right, speed, command, traffic)
         location = location / (0.5 * CROP_SIZE) - 1.0
-        pred_location = (_pred_location + 1) * coord_converter._img_size/2
+        # pred_location = (_pred_location + 1) * coord_converter._img_size/2
         location = coord_converter(location)
         
         loss = criterion(_pred_location, location)
@@ -249,17 +250,17 @@ def train(config):
     else:
         print("Loaded from Imagenet Pretrained")
 
-    teacher_net = BirdViewPolicyModelSS(config['teacher_args']['backbone']).to(config['device'])
-    teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
-    teacher_net.eval()
+    # teacher_net = BirdViewPolicyModelSS(config['teacher_args']['backbone']).to(config['device'])
+    # teacher_net.load_state_dict(torch.load(config['teacher_args']['model_path']))
+    # teacher_net.eval()
     
     coord_converter = CoordConverter(**config['camera_args'])
     
     optim = torch.optim.Adam(net.parameters(), lr=config['optimizer_args']['lr'])
 
     for epoch in tqdm.tqdm(range((checkpoint)+1, config['max_epoch']+1), desc='Epoch'):
-        train_loss = train_or_eval(coord_converter, criterion, net, teacher_net, data_train, optim, True, config, epoch == 0)
-        val_loss = train_or_eval(coord_converter, criterion, net, teacher_net, data_val, None, False, config, epoch == 0)
+        train_loss = train_or_eval(coord_converter, criterion, net, data_train, optim, True, config, epoch == 0)
+        val_loss = train_or_eval(coord_converter, criterion, net, data_val, None, False, config, epoch == 0)
 
         writer = SummaryWriter(str(Path(config['log_dir']) / ("runs") / (config['folder_name'])))
         writer.add_scalar('Loss/train', train_loss, epoch)
