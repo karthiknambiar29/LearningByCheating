@@ -5,7 +5,11 @@ import torchvision.transforms as transforms
 import carla
 import sys
 import glob
-sys.path.append(glob.glob('../PythonAPI/carla')[0])
+import os
+
+
+sys.path.append(glob.glob('/home/moonlab/Documents/LearningByCheating/PythonAPI/carla')[0])
+
 from agents.navigation.local_planner import LocalPlanner
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 
