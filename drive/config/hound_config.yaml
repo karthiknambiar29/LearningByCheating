@@ -29,13 +29,13 @@ port: 2000
 width: 1024
 height: 320
 loop: false
-sync: false
-town: Town01
+sync: true
+town: Town02
 
 
 # Traffic Config
 
-number_of_vehicles: 0
+number_of_vehicles: 100
 number_of_walkers: 0
 safe: false
 filterv: vehicle.*
@@ -51,4 +51,4 @@ frames_per_episode: 1000
 n_episodes: 800
 dataset_path: /home/moonlab/Desktop/karthik/LearningByCheating/dataset_2
 behaviour: normal
-model_path: /home/moonlab/Documents/LearningByCheating/training/image_direct_unbiased_iitj/model-227.th
+model_path: /home/moonlab/Documents/LearningByCheating/training/image_direct_biased_iitj/model-757.th
