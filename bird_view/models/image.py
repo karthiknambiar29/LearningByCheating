@@ -52,7 +52,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         if warp:
             ow,oh = 48,48
         else:
-            ow,oh = 200,152 #96, 40 
+            ow,oh = 96, 40 
         
         self.location_pred = nn.ModuleList([
             nn.Sequential(

@@ -1,4 +1,4 @@
-from efficientnet_pytorch.model import EfficientNet
+from .efficientnet_pytorch.model import EfficientNet
 import torch
 
 model_funcs = {
