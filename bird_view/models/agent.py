@@ -8,7 +8,7 @@ import glob
 import os
 
 
-sys.path.append(glob.glob('/workspace/LearningByCheating/PythonAPI/carla')[0])
+sys.path.append(glob.glob('../../LearningByCheating/PythonAPI/carla')[0])
 
 from agents.navigation.local_planner import LocalPlanner
 from agents.navigation.global_route_planner import GlobalRoutePlanner

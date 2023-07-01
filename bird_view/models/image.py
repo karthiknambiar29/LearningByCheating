@@ -27,7 +27,9 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         self.c = {
                 'resnet18': 512,
                 'resnet34': 512,
-                'resnet50': 2048
+                'resnet50': 2048,
+                'efficientnet-b0': 1280,
+                'efficientnet-b7': 2560
                 }[backbone]
         self.warp = warp
         self.rgb_transform = common.NormalizeV2(
@@ -50,7 +52,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         if warp:
             ow,oh = 48,48
         else:
-            ow,oh = 96,40 
+            ow,oh = 200,152 #96, 40 
         
         self.location_pred = nn.ModuleList([
             nn.Sequential(

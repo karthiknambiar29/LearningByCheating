@@ -284,6 +284,7 @@ if __name__ == '__main__':
     # Model
     parser.add_argument('--imagenet_pretrained', action='store_true')
     parser.add_argument('--pretrained', action='store_true')
+    parser.add_argument('--backbone', default='efficient')
     
     # Teacher.
     parser.add_argument('--teacher_path', default="/workspace/LearningByCheating/ckpts/priveleged/model-128.th")
@@ -324,7 +325,7 @@ if __name__ == '__main__':
             'model_args': {
                 'model': 'image_ss',
                 'imagenet_pretrained': parsed.imagenet_pretrained,
-                'backbone': BACKBONE,
+                'backbone': parsed.backbone,
                 },
             'camera_args': {
                 'w': 384,

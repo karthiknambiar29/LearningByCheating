@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 
 from .resnet import get_resnet
+from .efficientnet import get_efficientnet
 
 
 CROP_SIZE = 192
@@ -68,13 +69,21 @@ def make_arc(points, c, r):
 class ImageNetResnetBase(nn.Module):
     def __init__(self,  backbone, input_channel=3, bias_first=True, pretrained=False):
         super().__init__()
-        conv_left, c = get_resnet(
+        if backbone[:3] == 'res':
+            conv_left, c = get_resnet(
                     backbone, input_channel=input_channel,
                     bias_first=bias_first, pretrained=pretrained)
 
-        conv_right, c = get_resnet(
-                backbone, input_channel=input_channel,
-                bias_first=bias_first, pretrained=pretrained)
+            conv_right, c = get_resnet(
+                    backbone, input_channel=input_channel,
+                    bias_first=bias_first, pretrained=pretrained)
+            print('cc')
+        elif backbone[:3] == 'eff':
+            conv_left, c = get_efficientnet(
+                    backbone, pretrained=pretrained)
+
+            conv_right, c = get_efficientnet(
+                    backbone, pretrained=pretrained)
         
         self.conv_left = conv_left
         self.conv_right = conv_right
@@ -83,6 +92,7 @@ class ImageNetResnetBase(nn.Module):
         self.backbone = backbone
         self.input_channel = input_channel
         self.bias_first = bias_first
+
 class ResnetBase(nn.Module):
     def __init__(self, backbone, input_channel=3, bias_first=True, pretrained=False):
         super().__init__()
