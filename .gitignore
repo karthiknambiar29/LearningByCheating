@@ -40,6 +40,7 @@ training/image_biased_stork
 training/image_unbiased_kingfisher
 training/image_direct_biased_traffic_iitj
 training/image_direct_unbiased_traffic_iitj
+training/image_direct_unbiased_traffic_efficient_iitj
 ckpts
 # C extensions
 *.so
