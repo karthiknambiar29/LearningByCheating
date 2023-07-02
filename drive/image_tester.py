@@ -33,7 +33,7 @@ config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu')
                 'model_path': '/home/moonlab/Documents/LearningByCheating/training/birdview_stork/model-1100.th',
                 },
             'image_args' : {
-                'model_path': '/home/moonlab/Documents/LearningByCheating/training/image_direct_unbiased_iitj/model-227.th',
+                'model_path': '/home/moonlab/Documents/LearningByCheating/training/image_direct_unbiased_traffic_iitj/model-292.th',
                 }
             }
 image_net = ImagePolicyModelSS(backbone='resnet34').to(config['device'])
@@ -146,7 +146,7 @@ def unproject(output, world_y=0.88, fov=90):
     return world_output
 
 for x in os.walk('/home/moonlab/Documents/LearningByCheating/dataset/train/'):
-    if x[0] == '/home/moonlab/Documents/LearningByCheating/dataset/train/':
+    if x[0] != '/home/moonlab/Documents/LearningByCheating/dataset/train/000':
         continue
     env = lmdb.open(x[0])
     with env.begin() as txn:
@@ -175,13 +175,14 @@ for x in os.walk('/home/moonlab/Documents/LearningByCheating/dataset/train/'):
             rgb_right = birdview_transform(rgb_right)
             rgb_left = rgb_left[None, :].to(config['device'])
             rgb_right = rgb_right[None, :].to(config['device'])
+            traffic_light = torch.Tensor([traffic_light]).to(config['device'])
             command = one_hot(torch.Tensor([cmd])).to(config['device'])
             speed = np.sqrt(vx**2 + vy**2+vz**2)
             print(float(speed)*18/5)
             speed = torch.Tensor([float(speed)]).to(config['device'])
             with torch.no_grad():
                 _teac_locations = teacher_net(birdview, speed, command)
-                _image_locations = image_net(rgb_left, rgb_right, speed, command)
+                _image_locations = image_net(rgb_left, rgb_right, speed, command, traffic_light)
             
             _teac_locations = _teac_locations.squeeze().detach().cpu().numpy()
             _image_locations = _image_locations.squeeze().detach().cpu().numpy()
