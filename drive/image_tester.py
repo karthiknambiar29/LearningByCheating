@@ -145,8 +145,8 @@ def unproject(output, world_y=0.88, fov=90):
     
     return world_output
 
-for x in os.walk('/home/moonlab/Documents/LearningByCheating/dataset/train/'):
-    if x[0] != '/home/moonlab/Documents/LearningByCheating/dataset/train/000':
+for x in os.walk('/home/moonlab/Documents/LearningByCheating/dataset/val/'):
+    if x[0] == '/home/moonlab/Documents/LearningByCheating/dataset/val/':
         continue
     env = lmdb.open(x[0])
     with env.begin() as txn:

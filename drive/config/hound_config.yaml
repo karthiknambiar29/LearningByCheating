@@ -51,4 +51,4 @@ frames_per_episode: 1000
 n_episodes: 800
 dataset_path: /home/moonlab/Desktop/karthik/LearningByCheating/dataset_2
 behaviour: normal
-model_path: /home/moonlab/Documents/LearningByCheating/training/image_direct_unbiased_iitj/model-227.th
+model_path: /home/moonlab/Documents/LearningByCheating/training/image_direct_unbiased_traffic_iitj/model-292.th
