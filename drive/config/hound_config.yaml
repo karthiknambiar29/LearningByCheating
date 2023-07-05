@@ -29,13 +29,13 @@ port: 2000
 width: 1024
 height: 320
 loop: false
-sync: false
-town: Town01
+sync: True
+town: Town02
 
 
 # Traffic Config
 
-number_of_vehicles: 0
+number_of_vehicles: 25
 number_of_walkers: 0
 safe: false
 filterv: vehicle.*

@@ -97,7 +97,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
 
 
 class ImageAgent(Agent):
-    def __init__(self, vehicle, model,  steer_points=None, opt_dict={}, pid=None, gap=5, camera_args={'x':384,'h':160,'fov':90,'world_y':1.4,'fixed_offset':0.0}, **kwargs):
+    def __init__(self, vehicle, model, steer_points=None, opt_dict={}, pid=None, gap=5, camera_args={'x':384,'h':160,'fov':90,'world_y':1.4,'fixed_offset':0.0}, **kwargs):
         super().__init__(vehicle, model)
 
         
@@ -129,7 +129,7 @@ class ImageAgent(Agent):
 
         self.steer_points = steer_points
         self.turn_control = CustomController(pid)
-        self.speed_control = PIDController(K_P=1.0, K_I=.00, K_D=2.5)
+        self.speed_control = PIDController(K_P=1.0, K_I=0.0, K_D=0.5)
         
         self.engine_brake_threshold = 7.0
         self.brake_threshold = 7.0
@@ -141,6 +141,7 @@ class ImageAgent(Agent):
     def run_step(self, observations, teaching=False):
         rgb_left = observations['rgb_left'].copy()
         rgb_right = observations['rgb_right'].copy()
+        traffic = observations['traffic_light']
         speed = np.linalg.norm(observations['velocity'])
         _cmd = int(self._local_planner.command.value)
         command = self.one_hot[int(_cmd) - 1]
@@ -152,10 +153,11 @@ class ImageAgent(Agent):
             _rgb_right = self.transform(rgb_right).to(self.device).unsqueeze(0)
             _speed = torch.FloatTensor([speed]).to(self.device)
             _command = command.to(self.device).unsqueeze(0)
+            _traffic = torch.FloatTensor([traffic]).to(self.device)
             if self.model.all_branch:
-                model_pred, _ = self.model(_rgb_left, _rgb_right, _speed, _command)
+                model_pred, _ = self.model(_rgb_left, _rgb_right, _speed, _command, _traffic)
             else:
-                model_pred = self.model(_rgb_left, _rgb_right, _speed, _command)
+                model_pred = self.model(_rgb_left, _rgb_right, _speed, _command, _traffic)
 
         model_pred = model_pred.squeeze().detach().cpu().numpy()
         
@@ -176,7 +178,6 @@ class ImageAgent(Agent):
             targets.append([dist * np.cos(angle), dist * np.sin(angle)])
 
         targets = np.array(targets)
-
         target_speed = np.linalg.norm(targets[:-1] - targets[1:], axis=1).mean() / (self.gap * DT)
 
         c, r = ls_circle(targets)
@@ -203,7 +204,7 @@ class ImageAgent(Agent):
             brake = 1.0
         if target_speed > 50/3:
             throttle = 0.0
-            brake = 1.0
+            brake = 0.3
         if target_speed < 7:
             throttle = 0.0
             brake=1.0
