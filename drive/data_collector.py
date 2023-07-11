@@ -521,7 +521,6 @@ def game_loop(args):
             else:
                 sim_world.wait_for_tick()
             progress = tqdm.tqdm(range(args.frames_per_episode), desc='Frame')
-            Flag = False
             while len(data) < args.frames_per_episode:
                 if args.sync:
                     sim_world.tick()

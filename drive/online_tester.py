@@ -288,7 +288,7 @@ class World(object):
         ori = self.player.get_transform().get_forward_vector()
         vel = self.player.get_velocity()
         acc = self.player.get_acceleration()
-        # traffic_light = 1.0 if agent.traffic_light_manager() else 0.0
+        traffic_light = 1.0 if agent.traffic_light_manager() else 0.0
         command = agent._local_planner.target_road_option
         control = self.player.get_control()
         result.update({
@@ -296,7 +296,7 @@ class World(object):
                 'orientation': np.float32([ori.x, ori.y]),
                 'velocity': np.float32([vel.x, vel.y, vel.z]),
                 'acceleration': np.float32([acc.x, acc.y, acc.z]),
-                # 'traffic_light': traffic_light,
+                'traffic_light': traffic_light,
                 'command': command if command is not None else RoadOption.LANEFOLLOW,
                 'control': control})
         # print ("%.3f, %.3f"%(self.rgb_image.timestamp, self._world.get_snapshot().timestamp.elapsed_seconds))
@@ -539,6 +539,7 @@ def game_loop(args):
             # agent_control.append([control.throttle, control.steer, control.brake])
             for x, y in model_pred:
                 pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y), 3, 3))
+                pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y+160), 3, 3))
             for x, y in world_pred:
                 pygame.draw.rect(display, RED, pygame.Rect(384+320//2+int(x), 260-int(y)-10, 3, 3))
             pygame.display.update()
@@ -546,10 +547,7 @@ def game_loop(args):
             world.player.apply_control(control)
         if original_settings:
             sim_world.apply_settings(original_settings)
-    
-        # if world is not None:
-        #     world.destroy()
-                 
+
     finally:
 
 
