@@ -373,7 +373,7 @@ class KeyboardControl(object):
         if isinstance(world.player, carla.Vehicle):
             self._control = carla.VehicleControl()
             self._lights = carla.VehicleLightState.NONE
-            world.player.set_autopilot(self._autopilot_enabled)
+            # world.player.set_autopilot(self._autopilot_enabled)
             world.player.set_light_state(self._lights)
         elif isinstance(world.player, carla.Walker):
             self._control = carla.WalkerControl()
@@ -1187,18 +1187,27 @@ def game_loop(args):
     try:
         client = carla.Client(args.host, args.port)
         client.set_timeout(20.0)
-
+        traffic_manager = client.get_trafficmanager(8080)
         sim_world = client.get_world()
+
         if args.sync:
-            original_settings = sim_world.get_settings()
             settings = sim_world.get_settings()
-            if not settings.synchronous_mode:
-                settings.synchronous_mode = True
-                settings.fixed_delta_seconds = 0.05
+            settings.synchronous_mode = True
+            settings.fixed_delta_seconds = 0.05
             sim_world.apply_settings(settings)
 
-            traffic_manager = client.get_trafficmanager()
             traffic_manager.set_synchronous_mode(True)
+        # sim_world = client.get_world()
+        # if args.sync:
+        #     original_settings = sim_world.get_settings()
+        #     settings = sim_world.get_settings()
+        #     if not settings.synchronous_mode:
+        #         settings.synchronous_mode = True
+        #         settings.fixed_delta_seconds = 0.05
+        #     sim_world.apply_settings(settings)
+
+        #     traffic_manager = client.get_trafficmanager(8080)
+        #     traffic_manager.set_synchronous_mode(True)
 
         if args.autopilot and not sim_world.get_settings().synchronous_mode:
             print("WARNING: You are currently in asynchronous mode and could "

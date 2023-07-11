@@ -229,8 +229,8 @@ class World(object):
                 5:"CHANGELANELEFT",
                 6:"CHANGELANERIGHT"
         }
-        items.append('Command:   % 15s' % (commands[int(observations['command'])]))
-
+        items.append('Command:   % 15s' % (commands[int(agent._local_planner.command.value)]))
+        items.append('Traffic:   % 15f' % (observations['traffic_light']))
         # TRAFFIC LIGHT
         # traffic_light = observations['traffic_light']
         # items.append('Traffic Light:   % 12s' % ('RED' if traffic_light == 1.0 else 'GREEN'))
@@ -512,8 +512,7 @@ def game_loop(args):
         spawn_points = world.map.get_spawn_points()
         destination = random.choice(spawn_points).location
         agent.set_destination(destination)
-        image_control = []
-        agent_control = []
+
         while True:
             if args.sync:
                 sim_world.tick()
@@ -534,9 +533,6 @@ def game_loop(args):
                     break
             observations = world.get_observations(agent)
             control, model_pred, world_pred = agent.run_step(observations)
-            # image_control.append([control.throttle, control.steer, control.brake])
-            # control = agent.run_step()
-            # agent_control.append([control.throttle, control.steer, control.brake])
             for x, y in model_pred:
                 pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y), 3, 3))
                 pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y+160), 3, 3))

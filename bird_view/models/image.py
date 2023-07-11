@@ -15,7 +15,7 @@ from .controller import ls_circle
 CROP_SIZE = 192
 STEPS = 5
 COMMANDS = 4
-DT = 0.1
+DT = 0.05
 CROP_SIZE = 192
 PIXELS_PER_METER = 5
 
@@ -63,6 +63,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         self.all_branch = all_branch
 
     def forward(self, image_left, image_right, velocity, command, traffic):
+        print(image_left.shape, velocity.shape, command.shape, traffic.shape)
         if self.warp:
             warped_image = tgm.warp_perspective(image_left, self.M, dsize=(192, 192))
             resized_image = resize_images(image_left)
@@ -84,9 +85,17 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
         
         h = torch.cat((h_l, velocity, traffic, h_r, velocity, traffic), dim=1)
         h = self.deconv(h)
+        print('h', h.shape)
+        location_preds = []
+        for i, location_pred in enumerate(self.location_pred):
+            feature, weight = location_pred(h)
+            location_preds.append(feature)
+            np.save('/home/moonlab/Documents/LearningByCheating/drive/{}.npy'.format(i),np.array(weight))
+
+        # location_preds = [location_pred(h) for location_pred in self.location_pred]
         
-        location_preds = [location_pred(h) for location_pred in self.location_pred]
         location_preds = torch.stack(location_preds, dim=1)
+        print('loc', location_preds.size())
         location_pred = common.select_branch(location_preds, command)
 
         if self.all_branch:
@@ -97,7 +106,7 @@ class ImagePolicyModelSS(common.ImageNetResnetBase):
 
 
 class ImageAgent(Agent):
-    def __init__(self, vehicle, model, steer_points=None, opt_dict={}, pid=None, gap=5, camera_args={'x':384,'h':160,'fov':90,'world_y':1.4,'fixed_offset':0.0}, **kwargs):
+    def __init__(self, vehicle, model, steer_points=None, opt_dict={}, pid=None, gap=5, camera_args={'x':384,'h':160,'fov':90,'world_y':0.88,'fixed_offset':0.0}, **kwargs):
         super().__init__(vehicle, model)
 
         
@@ -114,8 +123,8 @@ class ImageAgent(Agent):
 
         if pid is None:
             pid = {
-                "1" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.0}, # Left
-                "2" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.0}, # Right
+                "1" : {"Kp": 1.5, "Ki": 0.00, "Kd":0.0}, # Left
+                "2" : {"Kp": 1.5, "Ki": 0.00, "Kd":0.0}, # Right
                 "3" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.0}, # Straight
                 "4" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.0}, # Follow
             }
@@ -128,25 +137,25 @@ class ImageAgent(Agent):
         #     }
 
         self.steer_points = steer_points
-        self.turn_control = CustomController(pid)
-        self.speed_control = PIDController(K_P=1.0, K_I=0.0, K_D=0.5)
+        self.turn_control = CustomController(pid, dt=0.05)
+        self.speed_control = PIDController(K_P=0.3, K_I=0.0, K_D=0.3, fps=20)
         
-        self.engine_brake_threshold = 7.0
-        self.brake_threshold = 7.0
+        self.engine_brake_threshold = 3.0
+        self.brake_threshold = 3.0
         
         self.last_brake = -1
 
 
 
     def run_step(self, observations, teaching=False):
+        _ = self._local_planner.run_step()
         rgb_left = observations['rgb_left'].copy()
         rgb_right = observations['rgb_right'].copy()
         traffic = observations['traffic_light']
         speed = np.linalg.norm(observations['velocity'])
-        _cmd = int(self._local_planner.command.value)
+        _cmd = int((observations['command']))
         command = self.one_hot[int(_cmd) - 1]
-        # _cmd = int(observations['command'])
-        # command = self.one_hot[int(observations['command']) - 1]
+
 
         with torch.no_grad():
             _rgb_left = self.transform(rgb_left).to(self.device).unsqueeze(0)
@@ -182,15 +191,16 @@ class ImageAgent(Agent):
 
         c, r = ls_circle(targets)
         n = self.steer_points.get(str(_cmd), 1)
-        closest = common.project_point_to_circle(targets[n], c, r)
+        closest = common.project_point_to_circle(targets[4], c, r)
         
-        acceleration = target_speed - speed
+        
         
         v = [1.0, 0.0, 0.0]
         w = [closest[0], closest[1], 0.0]
         alpha = common.signed_angle(v, w)
-
-        steer = self.turn_control.run_step(alpha*2.75, _cmd)
+        target_speed = target_speed*np.cos(alpha)**2
+        acceleration = target_speed - speed
+        steer = self.turn_control.run_step(alpha, _cmd)
         throttle = self.speed_control.step(acceleration)
         brake = 0.0
         print('target_speed : ', target_speed, ' speed : ', speed,  ' steer : ', steer, ' alpha : ', alpha)
@@ -204,8 +214,8 @@ class ImageAgent(Agent):
             brake = 1.0
         if target_speed > 50/3:
             throttle = 0.0
-            brake = 0.3
-        if target_speed < 7:
+            brake = 1.0
+        if target_speed < 1:
             throttle = 0.0
             brake=1.0
         self.debug = {
@@ -243,4 +253,4 @@ class ImageAgent(Agent):
         
         world_output = world_output.squeeze()
         
-        return world_output*PIXELS_PER_METER
+        return world_output

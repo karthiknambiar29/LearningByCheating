@@ -33,7 +33,7 @@ config = {'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu')
                 'model_path': '/home/moonlab/Documents/LearningByCheating/training/birdview_stork/model-1100.th',
                 },
             'image_args' : {
-                'model_path': '/home/moonlab/Documents/LearningByCheating/training/image_direct_unbiased_traffic_iitj/model-292.th',
+                'model_path': '/home/moonlab/Documents/LearningByCheating/training/image_direct_unbiased_traffic_iitj/model-915.th',
                 }
             }
 image_net = ImagePolicyModelSS(backbone='resnet34').to(config['device'])
@@ -158,13 +158,17 @@ for x in os.walk('/home/moonlab/Documents/LearningByCheating/dataset/val/'):
             bird_view = np.fromstring(txn.get(('birdview_%04d'%i).encode()), np.uint8).reshape(320,320,8)
             # removing traffic channels
             bird_view = np.delete(bird_view, [2], axis=-1)
+            print(bird_view.shape)
             measurement = np.frombuffer(txn.get(('measurements_%04d'%i).encode()), np.float32)
             display.blit(pygame.surfarray.make_surface(rgb_left.swapaxes(0, 1)), (0, 0))
             display.blit(pygame.surfarray.make_surface(rgb_right.swapaxes(0, 1)), (0, 160))
             display.blit(pygame.surfarray.make_surface(np.zeros((320, 320))), (704, 0))
             birdview = crop_birdview(bird_view)
-            bird_view = visualize_birdview(birdview)
-            display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (384, 0))
+            np.save('rgb_left.npy', rgb_left)
+            np.save('rgb_right.npy', rgb_right)
+            break
+            # bird_view = visualize_birdview(birdview)
+            # display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (384, 0))
             ox, oy, oz, ori_ox, ori_oy, vx, vy, vz, ax, ay, az, cmd, steer, throttle, brake, manual, gear, traffic_light  = measurement
             
             #birdview
@@ -181,10 +185,10 @@ for x in os.walk('/home/moonlab/Documents/LearningByCheating/dataset/val/'):
             print(float(speed)*18/5)
             speed = torch.Tensor([float(speed)]).to(config['device'])
             with torch.no_grad():
-                _teac_locations = teacher_net(birdview, speed, command)
+                # _teac_locations = teacher_net(birdview, speed, command)
                 _image_locations = image_net(rgb_left, rgb_right, speed, command, traffic_light)
             
-            _teac_locations = _teac_locations.squeeze().detach().cpu().numpy()
+            # _teac_locations = _teac_locations.squeeze().detach().cpu().numpy()
             _image_locations = _image_locations.squeeze().detach().cpu().numpy()
             _world_locations = unproject((_image_locations + 1)*np.array([384, 160])/2)
             # for x, y in (_teac_locations+1) * (0.5*192):

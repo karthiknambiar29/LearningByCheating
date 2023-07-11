@@ -693,7 +693,7 @@ def game_loop(args):
         client = carla.Client(args.host, args.port)
         client.set_timeout(4.0)
 
-        traffic_manager = client.get_trafficmanager()
+        traffic_manager = client.get_trafficmanager(8080)
         sim_world = client.get_world()
 
         if args.sync:

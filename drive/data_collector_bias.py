@@ -475,7 +475,7 @@ def game_loop(args):
         for i in tqdm.tqdm(range(0, args.n_episodes), desc='Episode'):
             data = list()
             print('%03d' % i)
-            filepath = save_dir.joinpath('%03d' % int(i+77))
+            filepath = save_dir.joinpath('%03d' % int(i+1200))
             if filepath.exists():
                 continue
             client = carla.Client(args.host, args.port)
@@ -528,6 +528,7 @@ def game_loop(args):
                     sim_world.tick()
                 world.tick()
                 world.render(display, agent)
+                print(datetime.datetime.now())
                 pygame.display.flip()
 
                 if agent.done():
