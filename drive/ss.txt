@@ -102,14 +102,15 @@ class ImageAgent(Agent):
     def __init__(self, vehicle, model, steer_points=None, opt_dict={}, pid=None, gap=5, camera_args={'x':384,'h':160,'fov':90,'world_y':0.88,'fixed_offset':0.0}, debug=False, **kwargs):
         super().__init__(vehicle, model)
         self.debug = debug
-        self.delay = 0
-        self.flag = False
-        self.cmd = None
-        self.left_turn = False
-        self.left_turn_count = 0
-        self.right_turn = False
-        self.right_turn_count = 0
-        self.ALPHA = 0
+        self.acceleration = []
+        self.steer = []
+        self.brake = []
+        self.target_speed = []
+        self.speed = []
+        self.alpha = []
+        self._cmd = []
+        self.throttle = []
+        self.traffic = []
         
 
         self.fixed_offset = float(camera_args['fixed_offset'])
@@ -118,21 +119,18 @@ class ImageAgent(Agent):
         self.img_size = np.array([w,h])
         self.gap = gap
         if steer_points is None:
-            steer_points = {"1": 4, "2": 3, "3": 2, "4": 2}
-
+            steer_points = {"1": 4, "2": 3, "3": 2, "4": 4}
         if pid is None:
             pid = {
-                "1" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.0}, # Left
-                "2" : {"Kp": 1.0, "Ki": 0.3, "Kd":0.0}, # Right
-                "3" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.0}, # Straight
-                "4" : {"Kp": 1.0, "Ki": 0.4, "Kd":0.0}, # Follow
-                # "4.1" : {"Kp": 1.0, "Ki": 0.3, "Kd":0.0}, # Follow
-                # "4.2" : {"Kp": 1.0, "Ki": 0.5, "Kd":0.0}, # Follow
+                "1" : {"Kp": 0.95, "Ki": 0.0, "Kd":0.0}, # Left
+                "2" : {"Kp": 1.1, "Ki": 0.175, "Kd":0.0}, # Right
+                "3" : {"Kp": 1.0, "Ki": 0.0, "Kd":0.0}, # Straight
+                "4" : {"Kp": 1.0, "Ki": 0.185, "Kd":0.0}, # Follow
             }
 
         self.steer_points = steer_points
         self.turn_control = CustomController(pid)
-        self.speed_control = PIDController(K_P=.8, K_I=.08, K_D=0.)
+        self.speed_control = PIDController(K_P=1.0, K_I=.08, K_D=0.2)
 
         # if pid is None:
         #     pid = {
@@ -153,8 +151,8 @@ class ImageAgent(Agent):
         # self.turn_control = CustomController(pid, dt=0.05)
         # self.speed_control = PIDController(K_P=0.1, K_I=0.0, K_D=0.2, fps=20)
         
-        self.engine_brake_threshold = 0.2
-        self.brake_threshold = 0.2        
+        self.engine_brake_threshold = 1.5
+        self.brake_threshold = 1.5        
         self.last_brake = -1
 
 
@@ -170,51 +168,6 @@ class ImageAgent(Agent):
         _cmd = 2 if _cmd == 6 else _cmd
         # _cmd = 2 if _cmd == 1 else _cmd
         # _cmd = 2 if _cmd == 3 else _cmd
-        if _cmd == 1 or _cmd == 2:
-            self.flag = True
-            self.cmd = _cmd
-
-        if self.flag and (_cmd == 3 or _cmd == 4):
-            _cmd = self.cmd
-            self.delay +=1
-            print('delay')
-
-        if self.delay > 30:
-            self.flag = False
-            self.delay = 0
-            print('delay over')
-        print(np.degrees(self.ALPHA))
-        print(self.flag)
-        if _cmd == 4 and np.degrees(self.ALPHA) < -6.4 and not self.flag:
-            print(np.degrees(self.ALPHA))
-            self.left_turn = True
-            self.cmd = _cmd
-
-        if self.left_turn and self.cmd == 4:
-            _cmd = 1
-            self.left_turn_count += 1
-
-        if _cmd == 4 and np.degrees(self.ALPHA) > 4.0 and not self.flag:
-            print(np.degrees(self.ALPHA))
-            self.right_turn = True
-            self.cmd = _cmd
-
-        if self.right_turn and self.cmd == 4 :
-            _cmd = 2
-            self.right_turn_count += 1
-
-        if self.left_turn_count > 30 or np.degrees(self.ALPHA) > -5.0:
-            self.left_turn_count = 0
-            self.left_turn = False
-
-        if self.right_turn_count > 30 or np.degrees(self.ALPHA) < 3.0:
-            self.right_turn_count = 0
-            self.right_turn = False
-        
-
-            
-
-
         command = self.one_hot[int(_cmd) - 1]
 
 
@@ -223,7 +176,7 @@ class ImageAgent(Agent):
             _rgb_right = self.transform(rgb_right).to(self.device).unsqueeze(0)
             _speed = torch.FloatTensor([speed]).to(self.device)
             _command = command.to(self.device).unsqueeze(0)
-            _traffic = torch.FloatTensor([0.0]).to(self.device)
+            _traffic = torch.FloatTensor([traffic]).to(self.device)
             if self.model.all_branch:
                 model_pred, model_preds = self.model(_rgb_left, _rgb_right, _speed, _command, _traffic)
             else:
@@ -266,15 +219,6 @@ class ImageAgent(Agent):
         v = [1.0, 0.0, 0.0]
         w = [closest[0], closest[1], 0.0]
         alpha = common.signed_angle(v, w)
-        self.ALPHA = alpha
-        if _cmd == 1 or _cmd == 2:
-            target_speed /= 1.1
-        # if _cmd == 4 and np.degrees(alpha) > 1.0:
-        #     # target_speed *= 0.5
-        #     _cmd = str(4.2)
-        # if _cmd == 4 and np.degrees(alpha) < -1.0:
-        #     # target_speed *= 0.8
-        #     _cmd = str(4.1)
         target_speed *= np.power(np.cos(alpha), 4)
         acceleration = target_speed - speed
         steer = self.turn_control.run_step(alpha, _cmd)
@@ -286,7 +230,27 @@ class ImageAgent(Agent):
             params = ['acceleration', 'throttle', 'speed', 'target_speed', 'steer', 'alpha', 'command', 'traffic', 'brake']
             values = [acceleration, throttle, speed, target_speed, steer, alpha, _cmd, traffic, brake]
             dictionary = dict(zip(params, values))
+        
 
+        self.acceleration.append(acceleration)
+        self.steer.append(alpha)
+        self.brake.append(brake)
+        self.target_speed.append(target_speed)
+        self.speed.append(speed)
+        self.alpha.append(alpha)
+        self._cmd.append(_cmd)
+        self.throttle.append(throttle)
+        self.traffic.append(traffic)
+        if len(self.acceleration) % 100 == 0:
+            np.save('run2/acceleration.npy', self.acceleration)
+            np.save('run2/steer.npy', self.steer)
+            np.save('run2/brake.npy', self.brake)
+            np.save('run2/target_speed.npy', self.target_speed)
+            np.save('run2/speed.npy', self.speed)
+            np.save('run2/alpha.npy', self.alpha)
+            np.save('run2/_cmd.npy', self._cmd)
+            np.save('run2/throttle.npy', self.throttle)
+            np.save('run2/traffic.npy', self.traffic)
         if target_speed <= self.engine_brake_threshold:
             steer = 0.0
             throttle = 0.0

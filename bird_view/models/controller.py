@@ -91,9 +91,7 @@ class CustomController():
         else:
             _de = 0.0
             _ie = 0.0
-
         Kp = self._controller_args[str(cmd)]["Kp"]
         Ki = self._controller_args[str(cmd)]["Ki"]
         Kd = self._controller_args[str(cmd)]["Kd"]
-        print(Kp, ' Kp')
         return (Kp * alpha) + (Kd * _de) + (Ki * _ie)

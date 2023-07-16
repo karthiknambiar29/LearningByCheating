@@ -45,6 +45,7 @@ ckpts
 # C extensions
 *.so
 training/image_phase*
+drive/run*
 # Distribution / packaging
 bin/
 build/

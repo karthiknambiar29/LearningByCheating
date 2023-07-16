@@ -28,16 +28,19 @@ tm_port: 8080
 port: 2000
 width: 1024
 height: 320
-loop: false
+loop: True
 sync: True
 town: Town01
+debug: true
+all_branch: false
+
 
 
 # Traffic Config
 
 number_of_vehicles: 0
 number_of_walkers: 0
-safe: false
+safe: True
 filterv: vehicle.*
 generationv: All
 filterw: walker.pedestrian.*
@@ -51,4 +54,4 @@ frames_per_episode: 1000
 n_episodes: 800
 dataset_path: /media/storage/dataset_2
 behaviour: normal
-model_path: /home/moonlab/Documents/LearningByCheating/training/image_direct_unbiased_traffic_iitj/model-915.th
+model_path: /home/moonlab/Documents/LearningByCheating/training/image_direct_unbiased_traffic_iitj/model-999.th

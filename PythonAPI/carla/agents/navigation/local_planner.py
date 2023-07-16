@@ -189,6 +189,7 @@ class LocalPlanner(object):
         :param clean_queue: bool
         :return:
         """
+        print('set_global_plan')
         if clean_queue:
             self._waypoints_queue.clear()
 
@@ -256,7 +257,6 @@ class LocalPlanner(object):
 
         if debug:
             draw_waypoints(self._vehicle.get_world(), [self.target_waypoint], 1.0)
-        print(self.target_road_option)
 
         return control
 

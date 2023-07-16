@@ -1,0 +1,11 @@
+pid = {
+    "1" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.2}, # Left
+    "2" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.4}, # Right
+    "3" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.2}, # Straight
+    "4" : {"Kp": 1.0, "Ki": 0.00, "Kd":0.2}, # Follow
+}
+self.turn_control = CustomController(pid, dt=0.1)
+self.speed_control = PIDController(K_P=1.0, K_I=0.0, K_D=0.5, fps=10)
+if steer_points is None:
+    steer_points = {"1": 4, "2": 4, "3": 2, "4": 4}
+DT =0.05

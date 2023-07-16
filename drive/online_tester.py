@@ -22,6 +22,15 @@ try:
     from pygame.locals import KMOD_CTRL
     from pygame.locals import K_ESCAPE
     from pygame.locals import K_q
+    from pygame.locals import K_w
+    from pygame.locals import K_UP
+    from pygame.locals import K_DOWN
+    from pygame.locals import K_LEFT
+    from pygame.locals import K_RIGHT
+    from pygame.locals import K_s
+    from pygame.locals import K_a
+    from pygame.locals import K_d
+    from pygame.locals import K_SPACE
 except ImportError:
     raise RuntimeError('cannot import pygame, make sure pygame package is installed')
 
@@ -67,6 +76,10 @@ from bird_view.utils.map_utils import Wrapper as map_utils
 from data_util import YamlConfig, load_config, visualize_birdview, get_actor_blueprints, get_birdview, process, carla_img_to_np, is_within_distance_ahead, find_weather_presets, get_actor_display_name, get_actor_blueprints
 from pygame.locals import Color
 RED = Color('red')
+BLUE = Color('blue')
+GREEN = Color('green')
+BLACK = Color('black')
+COLORS = [RED, BLUE, GREEN, BLACK]
 VEHICLE_NAME = 'vehicle.ford.mustang'
 
 PRESET_WEATHERS = {
@@ -101,9 +114,22 @@ class World(object):
         self.rgb_image_left = None
         self.rgb_queue_right = None
         self.rgb_image_right = None
+        self.rgb_queue_bev = None
+        self.rgb_image_bev = None
         self.rgb_camera_bp_left = None
         self.rgb_camera_bp_right = None
+        self.rgb_camera_bp_bev = None
 
+        #SENSORS
+        self.collision_sensor = None
+        self.lane_invasion_sensor = None
+        self.total_distance = 0
+        self.initial_location = None
+        self.current_location = None
+        self.frames = 0
+
+        self.observations = {}
+        
         # NOTIFICATION SETUP
         font_name = 'courier' if os.name == 'nt' else 'mono'
         fonts = [x for x in pygame.font.get_fonts() if font_name in x]
@@ -116,7 +142,7 @@ class World(object):
         self.generate_traffic(traffic_manager, synchronous_master)
 
     def restart(self):
-        self.world.set_weather(carla.WeatherParameters.ClearSunset)
+        self.world.set_weather(carla.WeatherParameters.ClearNoon)
         vehicles = self.world.get_actors().filter('vehicle.*')
         for v in vehicles:
             _ = v.destroy()
@@ -169,23 +195,47 @@ class World(object):
             carla.Transform(carla.Location(x=self.args.camera.right.x, z=self.args.camera.right.z, y=self.args.camera.right.y), carla.Rotation(pitch=self.args.camera.right.pitch, roll=self.args.camera.right.roll, yaw=self.args.camera.right.yaw)),
             attach_to=self.player)
         self.rgb_camera_bp_right.listen(self.rgb_queue_right.put)
+        self.rgb_queue_bev = queue.Queue()
+        rgb_camera_bp_bev = self.world.get_blueprint_library().find('sensor.camera.rgb')
+        rgb_camera_bp_bev.set_attribute('image_size_x', str(320))
+        rgb_camera_bp_bev.set_attribute('image_size_y', str(320))
+        rgb_camera_bp_bev.set_attribute('fov', str(self.args.camera.right.fov))
+        self.rgb_camera_bp_bev = self.world.spawn_actor(
+            rgb_camera_bp_bev,
+            carla.Transform(carla.Location(x=0, z=20, y=0), carla.Rotation(pitch=-90, roll=self.args.camera.right.roll, yaw=self.args.camera.right.yaw)),
+            attach_to=self.player)
+        self.rgb_camera_bp_bev.listen(self.rgb_queue_bev.put)
 
+        #SENSORS
+        self.collision_sensor = CollisionSensor(self.player)
+        self.lane_invasion_sensor = LaneInvasionSensor(self.player)
+
+        self.initial_location = self._start_pose.location
+        # print(self.initial_location)
+        # self.total_distance -= self.initial_location.distance(carla.Location())
+        # print(self.total_distance)
         if self.args.sync:
             self.world.tick()
         else:
             self.world.wait_for_tick()
         
-        map_utils.init(self.client, self.world, self.map, self.player)
+        # map_utils.init(self.client, self.world, self.map, self.player)
 
     def tick(self):
         """Method for every tick"""
         # self.command = self._local_planner.checkpoint[1]
-        map_utils.tick()
-        
+        # map_utils.tick()
+        self.current_location = self.player.get_location()
+        self.total_distance += self.current_location.distance(self.initial_location)
+        self.initial_location = self.current_location
         while self.rgb_image_left is None or self.rgb_queue_left.qsize() > 0:
             self.rgb_image_left = self.rgb_queue_left.get()
         while self.rgb_image_right is None or self.rgb_queue_right.qsize() > 0:
             self.rgb_image_right = self.rgb_queue_right.get()
+        while self.rgb_image_bev is None or self.rgb_queue_bev.qsize() > 0:
+            self.rgb_image_bev = self.rgb_queue_bev.get()
+
+
     
     def render_image(self, image):
         image.convert(cc.Raw)
@@ -200,10 +250,14 @@ class World(object):
             display.blit(self.render_image(self.rgb_image_left), (0, 0))
         if self.rgb_image_right is not None:
             display.blit(self.render_image(self.rgb_image_right), (0, 160))
+        if self.rgb_image_bev is not None:
+            display.blit(self.render_image(self.rgb_image_bev), (384, 0))
 
-        observations = self.get_observations(agent)
-        bird_view = visualize_birdview(get_birdview(self.get_observations(agent)))
-        display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (384, 0))
+        self.observations = self.get_observations(agent)
+        observations = self.observations
+        # observations = self.get_observations(agent)
+        # bird_view = visualize_birdview(get_birdview(self.get_observations(agent)))
+        # display.blit(pygame.surfarray.make_surface(np.transpose(bird_view, (1, 0, 2))), (384, 0))
         display.blit(pygame.surfarray.make_surface(np.zeros((320, 320))), (704, 0))
         # VELOCITY
         v_offset = 4
@@ -230,7 +284,15 @@ class World(object):
                 6:"CHANGELANERIGHT"
         }
         items.append('Command:   % 15s' % (commands[int(agent._local_planner.command.value)]))
-        items.append('Traffic:   % 15f' % (observations['traffic_light']))
+        items.append('Traffic:   % 15s' % ('RED' if observations['traffic_light'] == 1.0 else 'GREEN'))
+        items.append(f"Total Distance Traveled: {self.total_distance:.2f} meters")
+        # items.append(f"Lane Invasion: {self.lane_invasion_sensor.number:.0f}")
+        
+        # for collision in self.lane_invasion_sensor.laneinvasion_history:
+        #     items.append(collision)
+        # items.append(f"Collision: {self.collision_sensor.number:.0f}")
+        # for collision in self.collision_sensor.collision_history:
+        #     items.append(collision)
         # TRAFFIC LIGHT
         # traffic_light = observations['traffic_light']
         # items.append('Traffic Light:   % 12s' % ('RED' if traffic_light == 1.0 else 'GREEN'))
@@ -240,7 +302,7 @@ class World(object):
             if isinstance(item, tuple):
                 if item[-1] < 0:
                     surface = self._font_mono.render(item[0], True, (255, 255, 255))
-                    display.blit(surface, (708, v_offset))
+                    display.blit(surface, (704, v_offset))
                     rect_border = pygame.Rect((900, v_offset + 4), (bar_width, 6))
                     pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
                     rect = pygame.Rect((900 + (item[1]+1)/2 * (bar_width - 6), v_offset + 4), (6, 6))
@@ -248,7 +310,7 @@ class World(object):
                     v_offset +=18
                 else:    
                     surface = self._font_mono.render(item[0], True, (255, 255, 255))
-                    display.blit(surface, (708, v_offset))
+                    display.blit(surface, (704, v_offset))
                     rect_border = pygame.Rect((900, v_offset + 4), (bar_width, 6))
                     pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
                     rect = pygame.Rect((900, v_offset+4), (item[1] * bar_width, 6))
@@ -256,7 +318,7 @@ class World(object):
                     v_offset +=18
             else:
                 surface = self._font_mono.render(item, True, (255, 255, 255))
-                display.blit(surface, (708, v_offset))
+                display.blit(surface, (704, v_offset))
                 v_offset +=18
         
         
@@ -265,7 +327,10 @@ class World(object):
         actors = [
             self.player,
             self.rgb_camera_bp_left,
-            self.rgb_camera_bp_right
+            self.rgb_camera_bp_right,
+            self.rgb_camera_bp_bev,
+            self.collision_sensor.sensor,
+            self.lane_invasion_sensor.sensor
         ]
         for actor in actors:
             if actor is not None:
@@ -283,7 +348,7 @@ class World(object):
 
     def get_observations(self, agent):
         result = dict()
-        result.update(map_utils.get_observations())
+        # result.update(map_utils.get_observations())
         pos = self.player.get_location()
         ori = self.player.get_transform().get_forward_vector()
         vel = self.player.get_velocity()
@@ -303,9 +368,19 @@ class World(object):
         result.update({
             'rgb_left': carla_img_to_np(self.rgb_image_left),
             'rgb_right': carla_img_to_np(self.rgb_image_right),
-            'birdview': get_birdview(result),
+            # 'birdview': get_birdview(result),
             # 'collided': self.collided
             })
+        if self.args.debug:
+            self.frames +=1
+            result.update({
+                'distance': self.total_distance,
+                'frames': self.frames,
+                'lane_invasion': self.lane_invasion_sensor.number,
+                'collision': self.collision_sensor.number
+            })
+
+        self.observations = result
         return result
     
     def generate_traffic(self, traffic_manager, synchronous_master):
@@ -316,14 +391,14 @@ class World(object):
         blueprints = get_actor_blueprints(self.world, self.args.filterv, self.args.generationv)
         blueprintsWalkers = get_actor_blueprints(self.world, self.args.filterw, self.args.generationw)
 
-
         if self.args.safe:
-            blueprints = [x for x in blueprints if int(x.get_attribute('number_of_wheels')) == 4]
-            blueprints = [x for x in blueprints if not x.id.endswith('microlino')]
-            blueprints = [x for x in blueprints if not x.id.endswith('carlacola')]
-            blueprints = [x for x in blueprints if not x.id.endswith('cybertruck')]
-            blueprints = [x for x in blueprints if not x.id.endswith('t2')]
-            blueprints = [x for x in blueprints if not x.id.endswith('sprinter')]
+            print('safe')
+            # blueprints = [x for x in blueprints if int(x.get_attribute('number_of_wheels')) == 4]
+            # blueprints = [x for x in blueprints if not x.id.endswith('microlino')]
+            # blueprints = [x for x in blueprints if not x.id.endswith('carlacola')]
+            # blueprints = [x for x in blueprints if not x.id.endswith('cybertruck')]
+            # blueprints = [x for x in blueprints if not x.id.endswith('t2')]
+            # blueprints = [x for x in blueprints if not x.id.endswith('sprinter')]
             blueprints = [x for x in blueprints if not x.id.endswith('firetruck')]
             blueprints = [x for x in blueprints if not x.id.endswith('ambulance')]
         blueprints = sorted(blueprints, key=lambda bp: bp.id)
@@ -463,16 +538,147 @@ class World(object):
         # Example of how to use Traffic Manager parameters
         traffic_manager.global_percentage_speed_difference(30.0)
 
+class CollisionSensor(object):
+    """ Class for collision sensors"""
+
+    def __init__(self, parent_actor):
+        """Constructor method"""
+        self.sensor = None
+        self.collision_history = []
+        self.number = 0
+        self.history = []
+        self._parent = parent_actor
+        world = self._parent.get_world()
+        blueprint = world.get_blueprint_library().find('sensor.other.collision')
+        self.sensor = world.spawn_actor(blueprint, carla.Transform(), attach_to=self._parent)
+        # We need to pass the lambda a weak reference to
+        # self to avoid circular reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
+
+    def get_collision_history(self):
+        """Gets the history of collisions"""
+        history = collections.defaultdict(int)
+        for frame, intensity in self.history:
+            history[frame] += intensity
+        return history
+
+    @staticmethod
+    def _on_collision(weak_self, event):
+        """On collision method"""
+        self = weak_self()
+        if not self:
+            return
+        self.number +=1
+        actor_type = get_actor_display_name(event.other_actor)
+        print('Collision with %r' % actor_type)
+        self.collision_history.append('Collision with %r' % actor_type)
+        if len(self.collision_history) > 3:
+            self.collision_history.pop(0)
+        impulse = event.normal_impulse
+        intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
+        self.history.append((event.frame, intensity))
+        if len(self.history) > 4000:
+            self.history.pop(0)
+
+class LaneInvasionSensor(object):
+    """Class for lane invasion sensors"""
+
+    def __init__(self, parent_actor):
+        """Constructor method"""
+        self.sensor = None
+        self.laneinvasion_history = []
+        self.number = 0
+        self._parent = parent_actor
+        world = self._parent.get_world()
+        bp = world.get_blueprint_library().find('sensor.other.lane_invasion')
+        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        # We need to pass the lambda a weak reference to self to avoid circular
+        # reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda event: LaneInvasionSensor._on_invasion(weak_self, event))
+
+    @staticmethod
+    def _on_invasion(weak_self, event):
+        """On invasion method"""
+        self = weak_self()
+        if not self:
+            return
+        self.number +=1
+        lane_types = set(x.type for x in event.crossed_lane_markings)
+        text = ['%r' % str(x).split()[-1] for x in lane_types]
+        print('Crossed line %s' % ' and '.join(text))
+        self.laneinvasion_history.append('Crossed line %s' % ' and '.join(text))
+        if len(self.laneinvasion_history) > 3:
+            self.laneinvasion_history.pop(0)
+
+class KeyboardControl(object):
+    def __init__(self, world):
+
+        if isinstance(world.player, carla.Vehicle):
+            self._control = carla.VehicleControl()
+            self._lights = carla.VehicleLightState.NONE
+            world.player.set_light_state(self._lights)
+            self._cmd = 4
+
+    def parse_events(self, world):
+        if isinstance(self._control, carla.VehicleControl):
+            current_lights = self._lights
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return True
+            if event.type == pygame.KEYUP:
+                if self._is_quit_shortcut(event.key):
+                    return True
+                
+                if isinstance(self._control, carla.VehicleControl):
+                    self._parse_vehicle_keys(pygame.key.get_pressed())
+                    self._control.reverse = self._control.gear < 0
+                    # Set automatic control-related vehicle lights
+                    if self._control.brake:
+                        current_lights |= carla.VehicleLightState.Brake
+                    else: # Remove the Brake flag
+                        current_lights &= ~carla.VehicleLightState.Brake
+                    if self._control.reverse:
+                        current_lights |= carla.VehicleLightState.Reverse
+                    else: # Remove the Reverse flag
+                        current_lights &= ~carla.VehicleLightState.Reverse
+                    if current_lights != self._lights: # Change the light state only if necessary
+                        self._lights = current_lights
+                        world.player.set_light_state(carla.VehicleLightState(self._lights))
+                world.player.apply_control(self._control)
+
+    def _parse_vehicle_keys(self, keys):
+        if keys[K_UP] or keys[K_w]:
+            self._cmd = 4
+
+        if keys[K_DOWN] or keys[K_s]:
+            self._cmd = 3
+
+        if keys[K_LEFT] or keys[K_a]:
+            self._cmd = 1
+        elif keys[K_RIGHT] or keys[K_d]:
+            self._cmd = 2
+        self._traffic = keys[K_SPACE]
+
+
+    @staticmethod
+    def _is_quit_shortcut(key):
+        """Shortcut for quitting"""
+        return (key == K_ESCAPE) or (key == K_q and pygame.key.get_mods() & KMOD_CTRL)
+
 def game_loop(args):
-    
     pygame.init()
     pygame.font.init()
     world = None
     original_settings = None
     synchronous_master = False
-    image_net = ImagePolicyModelSS(backbone='resnet34').to('cuda')
+    image_net = ImagePolicyModelSS(backbone='resnet34', all_branch=args.all_branch).to('cuda')
     image_net.load_state_dict(torch.load(args.model_path))
     image_net.eval()
+
+    if args.debug:
+        DATA = []
 
     try:
         client = carla.Client(args.host, args.port)
@@ -503,17 +709,23 @@ def game_loop(args):
         display.fill((0,0,0))
         
         world = World(sim_world, client, traffic_manager, synchronous_master, args)
+        
         # agent = BehaviorAgent(world.player, behavior=args.behaviour)
-        agent = ImageAgent(vehicle=world.player, model=image_net)
-        print('x')
+        agent = ImageAgent(vehicle=world.player, model=image_net, debug=args.debug)
+        # controller = KeyboardControl(world)
 
 
         # Set the agent destination
         spawn_points = world.map.get_spawn_points()
         destination = random.choice(spawn_points).location
         agent.set_destination(destination)
+        clock = pygame.time.Clock()
 
+        # initial_location = world.player.get_location()
+        # total_distance = 0
         while True:
+            pygame.event.get()
+            clock.tick()
             if args.sync:
                 sim_world.tick()
             else:
@@ -521,6 +733,11 @@ def game_loop(args):
 
             if args.sync:
                 sim_world.tick()
+            # if len(FRAMES) % 100 == 0:
+            #     np.save('run2/frames.npy', FRAMES)
+            # if controller.parse_events(world):
+            #     return
+            # print(controller._cmd)
             world.tick()
             world.render(display, agent)
             pygame.display.flip()
@@ -531,21 +748,58 @@ def game_loop(args):
                 else:
                     print("The target has been reached, stopping the simulation")
                     break
-            observations = world.get_observations(agent)
-            control, model_pred, world_pred = agent.run_step(observations)
-            for x, y in model_pred:
-                pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y), 3, 3))
-                pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y+160), 3, 3))
-            for x, y in world_pred:
-                pygame.draw.rect(display, RED, pygame.Rect(384+320//2+int(x), 260-int(y)-10, 3, 3))
+            observations = world.observations
+            if args.debug:
+                if image_net.all_branch:
+                    control, model_preds, world_preds, debug = agent.run_step(observations)
+                    for i, model_pred in enumerate(model_preds):
+                        for x, y in model_pred:
+                            pygame.draw.rect(display, COLORS[i], pygame.Rect(int(x), int(y), 3, 3))
+                            pygame.draw.rect(display, COLORS[i], pygame.Rect(int(x), int(y+160), 3, 3))
+                else:
+                    control, model_pred, world_pred, debug = agent.run_step(observations)
+                    for x, y in model_pred:
+                        pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y), 3, 3))
+                        pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y+160), 3, 3))
+            else:
+                if image_net.all_branch:
+                    control, model_preds, world_preds = agent.run_step(observations)
+                    for i, model_pred in enumerate(model_preds):
+                        for x, y in model_pred:
+                            pygame.draw.rect(display, COLORS[i], pygame.Rect(int(x), int(y), 3, 3))
+                            pygame.draw.rect(display, COLORS[i], pygame.Rect(int(x), int(y+160), 3, 3))
+                else:
+                    control, model_pred, world_pred = agent.run_step(observations)
+                    for x, y in model_pred:
+                        pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y), 3, 3))
+                        pygame.draw.rect(display, RED, pygame.Rect(int(x), int(y+160), 3, 3))
+
             pygame.display.update()
-            control.manual_gear_shift = False
+            if args.debug:
+                frames = observations['frames']
+                distance = observations['distance']
+                lane_invasion = observations['lane_invasion']
+                collision = observations['collision']
+                acceleration = debug['acceleration']
+                throttle = debug['throttle']
+                steer = debug['steer']
+                alpha = debug['alpha']
+                speed = debug['speed']
+                target_speed = debug['target_speed']
+                command = debug['command']
+                traffic = debug['traffic']
+                brake = debug['brake']
+                DEBUG = np.array([frames, distance, lane_invasion, collision, acceleration, throttle, steer, alpha, speed, target_speed, command, traffic, brake])
+                DATA.append(DEBUG)
+                pygame.image.save(display, "run5/frame_{}.jpeg".format(frames))
+                control.manual_gear_shift = False
             world.player.apply_control(control)
+
         if original_settings:
             sim_world.apply_settings(original_settings)
 
     finally:
-
+        np.save('run5/data.npy', np.array(DATA).T)
 
         if original_settings:
             sim_world.apply_settings(original_settings)
@@ -553,6 +807,7 @@ def game_loop(args):
         if world is not None:
             world.destroy()
         pygame.quit()
+
 
 
 def main():

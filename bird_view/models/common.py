@@ -150,11 +150,9 @@ class SpatialSoftmax(nn.Module):
         self.register_buffer('pos_y', pos_y)
 
     def forward(self, feature):
-        output = []
-        output.append(feature.detach().cpu().numpy())
         # Output:
         #   (N, C*2) x_0 y_0 ...
-        # np.save('/home/moonlab/Documents/LearningByCheating/drive/y.npy', feature.detach().cpu().numpy())
+
 
         if self.data_format == 'NHWC':
             feature = feature.transpose(1, 3).tranpose(2, 3).view(-1, self.height*self.width)
@@ -162,22 +160,14 @@ class SpatialSoftmax(nn.Module):
             feature = feature.view(-1, self.height*self.width)
         
         weight = F.softmax(feature/self.temperature, dim=-1)
-        output.append(weight.detach().cpu().numpy())
-        output.append((torch.autograd.Variable(self.pos_x)).detach().cpu().numpy())
-        output.append((torch.autograd.Variable(self.pos_y)).detach().cpu().numpy())
-        output.append((torch.autograd.Variable(self.pos_x)*weight).detach().cpu().numpy())
-        output.append((torch.autograd.Variable(self.pos_y)*weight).detach().cpu().numpy())
         expected_x = torch.sum(torch.autograd.Variable(self.pos_x)*weight, dim=1, keepdim=True)
         expected_y = torch.sum(torch.autograd.Variable(self.pos_y)*weight, dim=1, keepdim=True)
         expected_xy = torch.cat([expected_x, expected_y], 1)
-        output.append(expected_xy.detach().cpu().numpy())
-        # print(expected_xy)
-        # feature_keypoints = expected_xy.view(-1, self.channel*2)
-        feature_keypoints = expected_xy.view(-1, self.channel, 2)
-        output.append(feature_keypoints.detach().cpu().numpy())
-        
-        return feature_keypoints, output
 
+        feature_keypoints = expected_xy.view(-1, self.channel, 2)
+
+        
+        return feature_keypoints
 
 class SpatialSoftmaxBZ(torch.nn.Module):
     """
