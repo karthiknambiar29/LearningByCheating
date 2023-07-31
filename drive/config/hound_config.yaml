@@ -30,7 +30,7 @@ width: 1024
 height: 320
 loop: True
 sync: True
-town: Town01
+town: Town02
 debug: true
 all_branch: false
 
@@ -38,7 +38,7 @@ all_branch: false
 
 # Traffic Config
 
-number_of_vehicles: 0
+number_of_vehicles: 100
 number_of_walkers: 0
 safe: True
 filterv: vehicle.*

@@ -791,7 +791,7 @@ def game_loop(args):
                 brake = debug['brake']
                 DEBUG = np.array([frames, distance, lane_invasion, collision, acceleration, throttle, steer, alpha, speed, target_speed, command, traffic, brake])
                 DATA.append(DEBUG)
-                pygame.image.save(display, "run5/frame_{}.jpeg".format(frames))
+                pygame.image.save(display, "run7/frame_{}.jpeg".format(frames))
                 control.manual_gear_shift = False
             world.player.apply_control(control)
 
@@ -799,7 +799,7 @@ def game_loop(args):
             sim_world.apply_settings(original_settings)
 
     finally:
-        np.save('run5/data.npy', np.array(DATA).T)
+        np.save('run7/data.npy', np.array(DATA).T)
 
         if original_settings:
             sim_world.apply_settings(original_settings)

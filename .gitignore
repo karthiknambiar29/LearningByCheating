@@ -15,6 +15,7 @@ LICENSE
 README
 python_api.md
 catkin_ws/src/graph_rviz_plugin/
+experiments_hound/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 dataset

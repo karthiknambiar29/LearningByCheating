@@ -153,8 +153,8 @@ class ImageAgent(Agent):
         # self.turn_control = CustomController(pid, dt=0.05)
         # self.speed_control = PIDController(K_P=0.1, K_I=0.0, K_D=0.2, fps=20)
         
-        self.engine_brake_threshold = 0.2
-        self.brake_threshold = 0.2        
+        self.engine_brake_threshold = 1.5
+        self.brake_threshold = 1.5       
         self.last_brake = -1
 
 
@@ -207,7 +207,7 @@ class ImageAgent(Agent):
             self.left_turn_count = 0
             self.left_turn = False
 
-        if self.right_turn_count > 30 or np.degrees(self.ALPHA) < 3.0:
+        if self.right_turn_count > 30:
             self.right_turn_count = 0
             self.right_turn = False
         
@@ -223,7 +223,7 @@ class ImageAgent(Agent):
             _rgb_right = self.transform(rgb_right).to(self.device).unsqueeze(0)
             _speed = torch.FloatTensor([speed]).to(self.device)
             _command = command.to(self.device).unsqueeze(0)
-            _traffic = torch.FloatTensor([0.0]).to(self.device)
+            _traffic = torch.FloatTensor([traffic]).to(self.device)
             if self.model.all_branch:
                 model_pred, model_preds = self.model(_rgb_left, _rgb_right, _speed, _command, _traffic)
             else:
